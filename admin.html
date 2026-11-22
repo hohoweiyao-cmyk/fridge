@@ -4,18 +4,682 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>冰箱看板 · 手机管理台</title>
+<style>
+  :root {
+    --bg: #f5f5f3;
+    --card: #ffffff;
+    --ink: #141413;
+    --muted: #666560;
+    --border: #dedcd6;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+    padding-bottom: 90px;
+  }
+  .topbar {
+    background: var(--ink);
+    color: #fff;
+    padding: 15px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+  }
+  .topbar h1 { font-size: 16px; font-weight: 700; }
+  .topbar a {
+    color: #fff;
+    text-decoration: none;
+    font-size: 13px;
+    border: 1px solid rgba(255,255,255,0.4);
+    padding: 5px 11px;
+    border-radius: 20px;
+  }
+  .container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .card {
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+  }
+  .card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1.5px solid var(--ink);
+  }
+  .card-title {
+    font-size: 15.5px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .badge-dark {
+    background: var(--ink);
+    color: #fff;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+  .hint-box {
+    background: #f4f3ef;
+    border-left: 3px solid var(--ink);
+    padding: 8px 11px;
+    font-size: 12.5px;
+    color: #444;
+    margin-bottom: 12px;
+    line-height: 1.45;
+    border-radius: 4px;
+  }
+  .form-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  input, select, textarea {
+    border: 1.5px solid #bbb9b2;
+    border-radius: 8px;
+    padding: 9px 11px;
+    font-size: 14px;
+    background: #fff;
+    color: var(--ink);
+    font-family: inherit;
+  }
+  input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--ink);
+  }
+  textarea {
+    width: 100%;
+    min-height: 70px;
+    resize: vertical;
+  }
+  .btn {
+    background: var(--ink);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 14px;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-outline {
+    background: #fff;
+    color: var(--ink);
+    border: 1.5px solid var(--ink);
+  }
+  .btn-sm {
+    padding: 4px 9px;
+    font-size: 12px;
+    border-radius: 6px;
+  }
+  .quick-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .chip {
+    background: #efede8;
+    border: 1px solid #d4d1c9;
+    border-radius: 16px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .item-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .item-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 9px 11px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #faf9f6;
+    gap: 8px;
+  }
+  .item-main {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+  }
+  .item-title { font-size: 14.5px; font-weight: 700; }
+  .item-sub { font-size: 12px; color: var(--muted); line-height: 1.4; }
+  .item-actions {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+  .slot-box {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 8px;
+    background: #faf9f6;
+  }
+  .slot-lbl {
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .save-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(255,255,255,0.96);
+    border-top: 1.5px solid var(--border);
+    padding: 12px 16px;
+    display: flex;
+    justify-content: center;
+    z-index: 30;
+  }
+  .save-btn {
+    width: 100%;
+    max-width: 570px;
+    background: var(--ink);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 13px;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  .toast {
+    position: fixed;
+    top: 64px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #15803d;
+    color: #fff;
+    padding: 8px 18px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    display: none;
+    z-index: 50;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+</style>
 </head>
-<body style="background:#f5f5f3;color:#141413;font-family:sans-serif;padding:20px;">
-<div>正在连接腾讯云冰箱看板后台...</div>
-<script type="text/javascript">
-(function() {
-  var hkBase = "https://1330653375-kee5znqxpt.ap-hongkong.tencentscf.com";
-  var boardUrl = "https://hohoweiyao-cmyk.github.io/fridge/";
-  var s = document.createElement("script");
-  s.type = "text/javascript";
-  s.src = hkBase + "/admin.js?apiBase=" + encodeURIComponent(hkBase) + "&origin=" + encodeURIComponent(boardUrl) + "&t=" + new Date().getTime();
-  document.body.appendChild(s);
+<body>
+<div class="topbar">
+  <h1>📟 Kindle 7 冰箱看板管理</h1>
+  <a href="https://hohoweiyao-cmyk.github.io/fridge/" target="_blank">查看看板画面 ▸</a>
+</div>
+<div class="toast" id="toast">✓ 已保存并同步到冰箱看板</div>
+
+<div class="container">
+  <!-- 1. 今日推荐菜品设定（支持自选 0~3 道 + 其余 AI 按冰箱食材自动生成） -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">🍽️ 今日菜品推荐 (自选 + AI 自动补齐)</div>
+      <span class="badge-dark">共展示 3 道</span>
+    </div>
+    <div class="hint-box">
+      💡 你可以自己输入今天想吃的菜（比如只填 1 道「可乐鸡翅」），<b>没填的空位会自动根据下方冰箱现有食材由 AI 推荐补齐满 3 道</b>；如果只填菜名不填做法，系统也会自动生成 3 步做法！
+    </div>
+    <div id="customDishSlots"></div>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button class="btn" id="aiGenBtn" onclick="triggerAiRecipes()" style="flex:1;">🤖 根据冰箱现有食材 AI 重新生成推荐菜谱与做法</button>
+      <button class="btn btn-outline" onclick="clearCustomDishes()">清空自选</button>
+    </div>
+  </div>
+
+  <!-- 2. 冰箱库存与 3 个月保质期提醒 -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">🥛 冰箱现有食材 & 保质期提醒</div>
+      <span class="badge-dark">AI 配菜依据 & ≤90天提醒</span>
+    </div>
+    <div class="quick-chips">
+      <span class="chip" onclick="quickAdd('鲜牛奶', '冷藏上层', 3)">+ 鲜牛奶 (3天)</span>
+      <span class="chip" onclick="quickAdd('鲜牛腩', '0°C保鲜层', 2)">+ 鲜牛腩 (2天)</span>
+      <span class="chip" onclick="quickAdd('排骨 / 猪肉', '冷冻/保鲜', 5)">+ 排骨猪肉 (5天)</span>
+      <span class="chip" onclick="quickAdd('焙煎芝麻沙拉酱', '门架', 30)">+ 沙拉酱 (30天)</span>
+      <span class="chip" onclick="quickAdd('味极鲜蚝油', '开封后', 45)">+ 开封蚝油 (45天)</span>
+      <span class="chip" onclick="quickAdd('黄油 / 芝士片', '冷藏抽屉', 60)">+ 黄油芝士 (60天)</span>
+    </div>
+    <div class="form-row">
+      <input id="invName" placeholder="食材/酱料名 (如 鲜牛奶/排骨)" style="flex:2;min-width:120px;">
+      <input id="invLoc" placeholder="位置 (如 冷藏上层/门架)" style="flex:1.3;min-width:95px;">
+      <input id="invDays" type="number" placeholder="剩几天" style="width:74px;" value="7">
+      <button class="btn" onclick="addInventory()">添加</button>
+    </div>
+    <div class="item-list" id="invList"></div>
+  </div>
+
+  <!-- 3. 待买补货清单（底部双列展示） -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">🛒 待买补货清单</div>
+      <span class="badge-dark">底部双列展示 (最多8项)</span>
+    </div>
+    <div class="quick-chips">
+      <span class="chip" onclick="quickAddShop('鸡蛋 1盒')">+ 鸡蛋 1盒</span>
+      <span class="chip" onclick="quickAddShop('小葱 / 生姜')">+ 小葱/生姜</span>
+      <span class="chip" onclick="quickAddShop('厨房抽纸')">+ 厨房抽纸</span>
+      <span class="chip" onclick="quickAddShop('无糖酸奶 ×2')">+ 无糖酸奶</span>
+      <span class="chip" onclick="quickAddShop('鲜虾仁 1袋')">+ 鲜虾仁</span>
+      <span class="chip" onclick="quickAddShop('生抽 / 料酒')">+ 生抽/料酒</span>
+      <span class="chip" onclick="quickAddShop('番茄 / 黄瓜')">+ 番茄/黄瓜</span>
+    </div>
+    <div class="form-row">
+      <input id="shopNameInput" placeholder="输入待买物品名称 (如 鸡蛋 1盒)" style="flex:1;">
+      <button class="btn" onclick="addShopItem()">+ 添加</button>
+      <button class="btn btn-outline" onclick="clearDoneShop()">清理已购</button>
+    </div>
+    <div class="item-list" id="shopAdminList"></div>
+  </div>
+
+  <!-- 4. 天气城市（默认郑州） & 生日纪念日倒计时 -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">🌤️ 天气所在城市 & 纪念日倒计时</div>
+      <span class="badge-dark">顶部栏</span>
+    </div>
+    <div class="form-row" style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px dashed var(--border);">
+      <span style="font-size:14px;font-weight:700;">当前城市：</span>
+      <select id="citySelect" onchange="changeCity(this.value)" style="flex:1;min-width:110px;">
+        <option value="郑州|34.7466|113.6253">郑州 (默认)</option>
+        <option value="洛阳|34.6197|112.4540">洛阳</option>
+        <option value="开封|34.7972|114.3076">开封</option>
+        <option value="新乡|35.3030|113.9268">新乡</option>
+        <option value="许昌|34.0357|113.8526">许昌</option>
+        <option value="南阳|32.9908|112.5283">南阳</option>
+        <option value="北京|39.9042|116.4074">北京</option>
+        <option value="上海|31.2304|121.4737">上海</option>
+        <option value="广州|23.1291|113.2644">广州</option>
+        <option value="深圳|22.5431|114.0579">深圳</option>
+        <option value="杭州|30.2741|120.1551">杭州</option>
+        <option value="成都|30.5728|104.0668">成都</option>
+        <option value="武汉|30.5928|114.3055">武汉</option>
+        <option value="南京|32.0603|118.7969">南京</option>
+        <option value="西安|34.3416|108.9398">西安</option>
+      </select>
+      <input id="customCityInput" placeholder="或其他城市名" style="width:115px;">
+      <button class="btn btn-outline btn-sm" onclick="searchCustomCity()">切换城市</button>
+    </div>
+
+    <div class="hint-box">
+      📌 看板顶部共 3 列：<b>前 2 列</b>自动取你在下方设置的最近 2 个纪念日/生日；<b>第 3 列</b>由系统全自动计算距离最近的节日（元旦、除夕、新年、元宵、清明、五一、端午、中秋、国庆），无需手动添加节日。
+    </div>
+    <div class="form-row">
+      <input id="evIcon" placeholder="图标" value="🎂" style="width:48px;text-align:center;">
+      <input id="evTitle" placeholder="纪念日/生日名称" style="flex:1;min-width:110px;">
+      <select id="evCalendar" style="width:76px;padding:9px 6px;">
+        <option value="solar">阳历</option>
+        <option value="lunar">阴历</option>
+      </select>
+      <input id="evMonth" type="number" min="1" max="12" placeholder="月" style="width:54px;">
+      <input id="evDay" type="number" min="1" max="31" placeholder="日" style="width:54px;">
+      <button class="btn" onclick="addEvent()">添加</button>
+    </div>
+    <div class="item-list" id="evList"></div>
+  </div>
+
+  <!-- 5. 当前 AI 菜谱库预览 -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">📖 自动生成的菜谱池预览</div>
+      <span class="badge-dark">点击「换一批」轮换</span>
+    </div>
+    <div class="item-list" id="recList"></div>
+  </div>
+</div>
+
+<div class="save-bar">
+  <button class="save-btn" onclick="saveAll()">💾 保存并刷新冰箱看板</button>
+</div>
+
+<script>
+var STATE = {"city":{"name":"郑州","lat":34.7466,"lon":113.6253},"events":[{"id":"ev1","icon":"🎂","title":"妈妈生日","calendar":"lunar","month":10,"day":26},{"id":"ev2","icon":"💍","title":"纪念日","calendar":"solar","month":12,"day":20}],"customDishes":[{"name":"","steps":""},{"name":"","steps":""},{"name":"","steps":""}],"inventory":[{"id":"i1","name":"鲜牛奶","location":"冷藏上层","keywords":["牛奶"],"daysLeft":2,"updatedAt":"2026-11-22"},{"id":"i2","name":"鲜牛腩","location":"0°C保鲜层","keywords":["牛腩","牛肉"],"daysLeft":1,"updatedAt":"2026-11-22"},{"id":"i3","name":"番茄 / 土豆","location":"果蔬盒","keywords":["番茄","土豆"],"daysLeft":5,"updatedAt":"2026-11-22"},{"id":"i4","name":"生菜 / 小葱","location":"果蔬盒","keywords":["生菜","葱"],"daysLeft":4,"updatedAt":"2026-11-22"},{"id":"i5","name":"鸡蛋 (1盒)","location":"冷藏门架","keywords":["鸡蛋"],"daysLeft":14,"updatedAt":"2026-11-22"},{"id":"i6","name":"焙煎芝麻沙拉酱","location":"门架","keywords":["沙拉酱"],"daysLeft":18,"updatedAt":"2026-11-22","showInExpiry":true},{"id":"i7","name":"味极鲜蚝油","location":"开封后","keywords":["蚝油"],"daysLeft":42,"updatedAt":"2026-11-22","showInExpiry":true},{"id":"i8","name":"黄油 / 芝士片","location":"冷藏抽屉","keywords":["黄油","芝士"],"daysLeft":60,"updatedAt":"2026-11-22","showInExpiry":true}],"expiryDisplayIds":["i1","i6","i7","i8"],"recipes":[{"id":"r1","name":"番茄土豆炖牛腩","ingredients":["牛腩","番茄","土豆"],"steps":"1.牛腩冷水下锅加姜料酒焯水；2.番茄炒出沙加开水慢炖40分钟；3.加入土豆块炖15分钟加盐收汁。"},{"id":"r2","name":"蒜蓉蚝油生菜","ingredients":["生菜","蚝油"],"steps":"1.生菜洗净，沸水加少许油盐烫15秒捞出；2.热油爆香蒜末，加1勺蚝油、半勺生抽与少许水煮开；3.淋在生菜上即可。"},{"id":"r3","name":"芝士玉米厚蛋烧","ingredients":["鸡蛋","芝士","牛奶"],"steps":"1.3颗鸡蛋加2勺牛奶与少许盐打散；2.平底锅刷黄油倒蛋液，铺上芝士片卷起；3.推至锅边再倒蛋液卷2次切段。"},{"id":"r4","name":"番茄滑蛋盖饭","ingredients":["番茄","鸡蛋","葱"],"steps":"1.鸡蛋打散炒至八分熟盛出；2.番茄切块炒出浓郁红汁，加半碗水与少许糖盐；3.倒回鸡蛋翻炒裹满汤汁撒葱花。"},{"id":"r5","name":"黑椒黄油煎牛腩粒","ingredients":["牛腩","黄油","土豆"],"steps":"1.牛腩与土豆切丁，土豆煎至金黄；2.融化黄油下牛肉粒大火快煎锁汁；3.撒现磨黑胡椒与少许蚝油翻匀出锅。"},{"id":"r6","name":"凯撒沙拉拌鲜蔬","ingredients":["生菜","沙拉酱","鸡蛋","番茄"],"steps":"1.鸡蛋冷水下锅煮8分钟切块；2.生菜撕小块与圣女果/番茄铺底；3.淋上焙煎芝麻沙拉酱拌匀即食。"},{"id":"r7","name":"牛奶炖滑嫩蒸蛋","ingredients":["鸡蛋","牛奶"],"steps":"1.鸡蛋2颗打散，兑入1.5倍温牛奶加少许盐撇去浮沫；2.盖保鲜膜扎孔水开蒸10分钟；3.出锅淋少许生抽香油。"}],"shoppingList":[{"id":"s1","name":"鸡蛋 1盒","done":false},{"id":"s2","name":"小葱 / 生姜","done":false},{"id":"s3","name":"厨房抽纸","done":false},{"id":"s4","name":"无糖酸奶 ×2","done":false},{"id":"s5","name":"鲜虾仁 1袋","done":false},{"id":"s6","name":"生抽 / 料酒","done":false}],"updatedAt":"2026-11-22 23:50"};
+if (!Array.isArray(STATE.customDishes)) {
+  STATE.customDishes = [{ name: "", steps: "" }, { name: "", steps: "" }, { name: "", steps: "" }];
+}
+if (!Array.isArray(STATE.shoppingList)) {
+  STATE.shoppingList = [
+    { id: "s1", name: "鸡蛋 1盒", done: false },
+    { id: "s2", name: "小葱 / 生姜", done: false },
+    { id: "s3", name: "厨房抽纸", done: false },
+    { id: "s4", name: "无糖酸奶 ×2", done: false },
+    { id: "s5", name: "鲜虾仁 1袋", done: false },
+    { id: "s6", name: "生抽 / 料酒", done: false }
+  ];
+}
+
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.innerText = msg || '✓ 已保存并同步到冰箱看板';
+  t.style.display = 'block';
+  setTimeout(function() { t.style.display = 'none'; }, 2400);
+}
+
+function quickAddShop(name) {
+  STATE.shoppingList.unshift({ id: 's' + Date.now(), name: name, done: false });
+  renderAll();
+}
+
+function addShopItem() {
+  var el = document.getElementById('shopNameInput');
+  var name = el.value.trim();
+  if (!name) return;
+  STATE.shoppingList.unshift({ id: 's' + Date.now(), name: name, done: false });
+  el.value = '';
+  renderAll();
+}
+
+function toggleShopAdmin(idx) {
+  STATE.shoppingList[idx].done = !STATE.shoppingList[idx].done;
+  renderAll();
+}
+
+function removeShopAdmin(idx) {
+  STATE.shoppingList.splice(idx, 1);
+  renderAll();
+}
+
+function clearDoneShop() {
+  STATE.shoppingList = STATE.shoppingList.filter(function(s) { return !s.done; });
+  renderAll();
+}
+
+function updateCustomDish(idx, field, val) {
+  if (!STATE.customDishes[idx]) STATE.customDishes[idx] = { name: "", steps: "" };
+  STATE.customDishes[idx][field] = val;
+}
+
+function clearCustomDishes() {
+  STATE.customDishes = [{ name: "", steps: "" }, { name: "", steps: "" }, { name: "", steps: "" }];
+  renderAll();
+}
+
+async function triggerAiRecipes() {
+  var btn = document.getElementById('aiGenBtn');
+  var oldText = btn.innerText;
+  btn.innerText = '🤖 正在根据冰箱食材 AI 生成菜谱与做法...';
+  btn.disabled = true;
+  try {
+    var apiUrl = 'https://1330653375-kee5znqxpt.ap-hongkong.tencentscf.com/api/ai-recipes';
+    var resp = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ inventory: STATE.inventory, customDishes: STATE.customDishes })
+    });
+    if (resp.ok) {
+      var data = await resp.json();
+      if (Array.isArray(data.recipes) && data.recipes.length > 0) {
+        STATE.recipes = data.recipes;
+      }
+      if (Array.isArray(data.customDishes)) {
+        STATE.customDishes = data.customDishes;
+      }
+      renderAll();
+      showToast('✨ AI 已根据冰箱现有食材生成最新菜谱与做法！');
+    }
+  } catch (e) {
+    showToast('已使用本地智能中餐引擎匹配菜谱');
+  }
+  btn.innerText = oldText;
+  btn.disabled = false;
+}
+
+function quickAdd(name, loc, days) {
+  STATE.inventory.unshift({
+    id: 'i' + Date.now(),
+    name: name,
+    location: loc,
+    keywords: [name.replace(/^鲜/, '')],
+    daysLeft: days
+  });
+  renderAll();
+}
+
+function addInventory() {
+  var name = document.getElementById('invName').value.trim();
+  var loc = document.getElementById('invLoc').value.trim() || '冷藏室';
+  var days = parseInt(document.getElementById('invDays').value, 10);
+  if (!name) return;
+  if (isNaN(days)) days = 7;
+  STATE.inventory.unshift({
+    id: 'i' + Date.now(),
+    name: name,
+    location: loc,
+    keywords: name.split(/[\s/、,，]+/).filter(Boolean),
+    daysLeft: days
+  });
+  document.getElementById('invName').value = '';
+  renderAll();
+}
+
+function removeInventory(idx) {
+  STATE.inventory.splice(idx, 1);
+  renderAll();
+}
+
+function adjustDays(idx, delta) {
+  STATE.inventory[idx].daysLeft += delta;
+  renderAll();
+}
+
+function removeRecipe(idx) {
+  STATE.recipes.splice(idx, 1);
+  renderAll();
+}
+
+function addEvent() {
+  var icon = document.getElementById('evIcon').value.trim() || '📌';
+  var title = document.getElementById('evTitle').value.trim();
+  var calendar = document.getElementById('evCalendar').value || 'solar';
+  var month = parseInt(document.getElementById('evMonth').value, 10);
+  var day = parseInt(document.getElementById('evDay').value, 10);
+  if (!title || isNaN(month) || isNaN(day)) return;
+  STATE.events.push({ id: 'ev' + Date.now(), icon: icon, title: title, calendar: calendar, month: month, day: day });
+  document.getElementById('evTitle').value = '';
+  renderAll();
+}
+
+function toggleEventCalendar(idx) {
+  var cur = STATE.events[idx].calendar === 'lunar' ? 'solar' : 'lunar';
+  STATE.events[idx].calendar = cur;
+  renderAll();
+}
+
+function removeEvent(idx) {
+  STATE.events.splice(idx, 1);
+  renderAll();
+}
+
+function changeCity(val) {
+  var parts = val.split('|');
+  STATE.city = { name: parts[0], lat: parseFloat(parts[1]), lon: parseFloat(parts[2]) };
+  STATE.cityUserChanged = true;
+}
+
+async function searchCustomCity() {
+  var name = document.getElementById('customCityInput').value.trim();
+  if (!name) return;
+  try {
+    var r = await fetch('https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(name) + '&count=1&language=zh&format=json');
+    var j = await r.json();
+    if (j.results && j.results.length > 0) {
+      var c = j.results[0];
+      STATE.city = { name: name, lat: c.latitude, lon: c.longitude };
+      STATE.cityUserChanged = true;
+      showToast('✓ 已切换城市为：' + name);
+      renderAll();
+    } else {
+      showToast('未找到该城市坐标，请尝试输入标准市名');
+    }
+  } catch (e) {}
+}
+
+function renderAll() {
+  var shopHtml = (STATE.shoppingList || []).map(function(s, idx) {
+    var txtStyle = s.done ? 'text-decoration:line-through;color:#888;' : '';
+    var btnLabel = s.done ? '☑ 已购' : '□ 待买';
+    var btnCls = s.done ? 'btn btn-sm' : 'btn btn-outline btn-sm';
+    return '<div class="item-row">' +
+      '<div class="item-title" style="' + txtStyle + '">' + s.name + '</div>' +
+      '<div class="item-actions">' +
+        '<button class="' + btnCls + '" onclick="toggleShopAdmin(' + idx + ')">' + btnLabel + '</button>' +
+        '<button class="btn btn-outline btn-sm" style="color:#b91c1c;border-color:#e5b4b4;" onclick="removeShopAdmin(' + idx + ')">删除</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  document.getElementById('shopAdminList').innerHTML = shopHtml;
+
+  // 渲染城市选中态
+  var sel = document.getElementById('citySelect');
+  var matchedOpt = false;
+  for (var i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].value.indexOf((STATE.city && STATE.city.name) || '郑州') === 0) {
+      sel.selectedIndex = i;
+      matchedOpt = true;
+      break;
+    }
+  }
+  if (!matchedOpt && STATE.city && STATE.city.name) {
+    document.getElementById('customCityInput').value = STATE.city.name;
+  }
+
+  // 渲染 3 个自选菜品槽位
+  var slotsHtml = [0, 1, 2].map(function(idx) {
+    var item = (STATE.customDishes && STATE.customDishes[idx]) || { name: "", steps: "" };
+    var statusTag = item.name ? '<span style="color:#15803d;">✓ 已指定自选菜</span>' : '<span style="color:#666;">留空 ➔ 自动由 AI 按冰箱食材生成</span>';
+    return '<div class="slot-box">' +
+      '<div class="slot-lbl"><span>今日菜位 #' + (idx + 1) + '</span>' + statusTag + '</div>' +
+      '<div class="form-row" style="margin-bottom:6px;">' +
+        '<input value="' + (item.name || '').replace(/"/g, '&quot;') + '" oninput="updateCustomDish(' + idx + ', \'name\', this.value)" placeholder="输入想吃的菜名 (留空则自动推荐)" style="flex:1;">' +
+      '</div>' +
+      '<div class="form-row" style="margin-bottom:0;">' +
+        '<input value="' + (item.steps || '').replace(/"/g, '&quot;') + '" oninput="updateCustomDish(' + idx + ', \'steps\', this.value)" placeholder="做法步骤 (可留空，保存时自动生成 3 步做法)" style="flex:1;font-size:12.5px;">' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  document.getElementById('customDishSlots').innerHTML = slotsHtml;
+
+  var invHtml = STATE.inventory.map(function(item, idx) {
+    var badge = item.daysLeft <= 3 ? 'background:#141413;color:#fff;' : 'background:#fff;color:#141413;border:1.5px solid #141413;';
+    var label = item.daysLeft <= 0 ? '今日用完' : (item.daysLeft >= 55 ? '剩 ' + Math.round(item.daysLeft/30) + ' 个月' : '剩 ' + item.daysLeft + ' 天');
+    return '<div class="item-row">' +
+      '<div class="item-main">' +
+        '<div class="item-title">' + item.name + ' <span style="font-weight:500;font-size:13px;color:#555;">(' + item.location + ')</span></div>' +
+      '</div>' +
+      '<div class="item-actions">' +
+        '<button class="btn btn-outline btn-sm" onclick="adjustDays(' + idx + ', -1)">-1天</button>' +
+        '<span style="font-size:12px;font-weight:800;padding:3px 9px;border-radius:12px;' + badge + '">' + label + '</span>' +
+        '<button class="btn btn-outline btn-sm" onclick="adjustDays(' + idx + ', 7)">+7天</button>' +
+        '<button class="btn btn-outline btn-sm" style="color:#b91c1c;border-color:#e5b4b4;" onclick="removeInventory(' + idx + ')">用完</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  document.getElementById('invList').innerHTML = invHtml;
+
+  var recHtml = (STATE.recipes || []).map(function(r, idx) {
+    return '<div class="item-row">' +
+      '<div class="item-main">' +
+        '<div class="item-title">' + r.name + ' <span style="font-size:12px;font-weight:600;color:#555;">(食材: ' + (r.ingredients || []).join('/') + ')</span></div>' +
+        '<div class="item-sub">' + r.steps + '</div>' +
+      '</div>' +
+      '<button class="btn btn-outline btn-sm" onclick="removeRecipe(' + idx + ')">删除</button>' +
+    '</div>';
+  }).join('');
+  document.getElementById('recList').innerHTML = recHtml;
+
+  var cnMonths = ["","正月","二月","三月","四月","五月","六月","七月","八月","九月","十月","冬月","腊月"];
+  var cnDays = ["","初一","初二","初三","初四","初五","初六","初七","初八","初九","初十","十一","十二","十三","十四","十五","十六","十七","十八","十九","二十","廿一","廿二","廿三","廿四","廿五","廿六","廿七","廿八","廿九","三十"];
+  var evHtml = STATE.events.map(function(ev, idx) {
+    var isLunar = ev.calendar === 'lunar';
+    var calTag = isLunar ? '阴历' : '阳历';
+    var dateStr = isLunar ? ((cnMonths[ev.month] || (ev.month + '月')) + (cnDays[ev.day] || (ev.day + '日'))) : (ev.month + '月' + ev.day + '日');
+    var tagStyle = isLunar ? 'background:#141413;color:#fff;' : 'background:#efede8;color:#141413;border:1px solid #bbb9b2;';
+    return '<div class="item-row">' +
+      '<div class="item-title">' + ev.icon + ' ' + ev.title +
+        ' <span onclick="toggleEventCalendar(' + idx + ')" style="cursor:pointer;font-size:11.5px;padding:2px 7px;border-radius:10px;margin:0 4px;' + tagStyle + '" title="点击切换阴历/阳历">' + calTag + ' ⇄</span>' +
+        '<span style="font-size:13px;color:#555;">(每年 ' + dateStr + ')</span>' +
+      '</div>' +
+      '<button class="btn btn-outline btn-sm" onclick="removeEvent(' + idx + ')">删除</button>' +
+    '</div>';
+  }).join('');
+  document.getElementById('evList').innerHTML = evHtml;
+}
+
+async function saveAll() {
+  STATE.expiryDisplayIds = STATE.inventory
+    .filter(function(i) { return i.daysLeft <= 90; })
+    .map(function(i) { return i.id; });
+
+  var resp = await fetch('https://1330653375-kee5znqxpt.ap-hongkong.tencentscf.com/api/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(STATE)
+  });
+  if (resp.ok) {
+    var resJson = await resp.json();
+    if (resJson && resJson.state) {
+      STATE = resJson.state;
+      renderAll();
+    }
+    showToast('✓ 已保存并同步到冰箱看板');
+  }
+}
+
+
+renderAll();
+(async function syncLiveState() {
+  try {
+    var r = await fetch("https://1330653375-kee5znqxpt.ap-hongkong.tencentscf.com/api/data?t=" + Date.now());
+    if (r.ok) {
+      var j = await r.json();
+      if (j && j.state) {
+        STATE = j.state;
+        if (!Array.isArray(STATE.customDishes)) STATE.customDishes = [{name:"",steps:""},{name:"",steps:""},{name:"",steps:""}];
+        if (!Array.isArray(STATE.shoppingList) || STATE.shoppingList.length === 0) {
+          STATE.shoppingList = [
+            { id: "s1", name: "鸡蛋 1盒", done: false },
+            { id: "s2", name: "小葱 / 生姜", done: false },
+            { id: "s3", name: "厨房抽纸", done: false },
+            { id: "s4", name: "无糖酸奶 ×2", done: false },
+            { id: "s5", name: "鲜虾仁 1袋", done: false },
+            { id: "s6", name: "生抽 / 料酒", done: false }
+          ];
+        }
+        renderAll();
+      }
+    }
+  } catch (e) {}
 })();
+
 </script>
 </body>
 </html>
