@@ -520,8 +520,25 @@
 
     <div class="card">
       <div class="card-head">
-        <span class="card-badge">⚙️ 家庭成员每日目标</span>
-        <button class="btn sm" onclick="saveFullState()">保存调整</button>
+        <span class="card-badge">⚙️ 家庭人员增删与目标</span>
+        <button class="btn sm" onclick="saveFullState()">保存目标</button>
+      </div>
+      <div class="item-sub" style="margin-bottom:8px;">父母来住可一键加上，回老家可点「不在家」保留档案，或直接「删除」：</div>
+      <div class="chips">
+        <span class="chip" onclick="quickAddMember('爸爸','长辈清淡')">+ 爸爸(长辈)</span>
+        <span class="chip" onclick="quickAddMember('妈妈','长辈清淡')">+ 妈妈(长辈)</span>
+        <span class="chip" onclick="quickAddMember('客人','成人均衡')">+ 客人(成人)</span>
+        <span class="chip" onclick="quickAddMember('小朋友','成长期')">+ 小朋友</span>
+      </div>
+      <div class="form-row">
+        <input id="newMemberName" placeholder="称呼（如 岳父/保姆）" style="flex:1;min-width:110px;">
+        <select id="newMemberRole" style="width:106px;">
+          <option value="长辈清淡">长辈清淡</option>
+          <option value="成人均衡">成人均衡</option>
+          <option value="薄肌目标">薄肌目标</option>
+          <option value="成长期">成长期</option>
+        </select>
+        <button class="btn accent sm" onclick="addCustomMember()">添加成员</button>
       </div>
       <div id="memberTargetsEl"></div>
     </div>
@@ -529,6 +546,28 @@
 
   <!-- ==================== 栏 4：备餐、留言条与看板设置 ==================== -->
   <div class="pane" id="pane-plan">
+    <!-- 按冰箱现存食材推荐当餐食谱 -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-badge orange">🍽️ 按冰箱现存食材 · 推荐当餐食谱</span>
+        <span class="card-meta" id="recHomeCountMeta">在家 4 人</span>
+      </div>
+      <div class="chips" id="recSlotChips">
+        <span class="chip" data-slot="breakfast" onclick="setRecSlot('breakfast')">🌅 早餐</span>
+        <span class="chip" data-slot="lunch" onclick="setRecSlot('lunch')">☀️ 午餐</span>
+        <span class="chip active" data-slot="dinner" onclick="setRecSlot('dinner')">🌙 晚餐</span>
+        <span class="chip" data-slot="snack" onclick="setRecSlot('snack')">🥛 加餐</span>
+      </div>
+      <div class="chips" id="recPrefChips">
+        <span class="chip active" onclick="toggleRecPref(this,'临期优先')">🔥 临期优先</span>
+        <span class="chip" onclick="toggleRecPref(this,'高蛋白薄肌')">💪 高蛋白</span>
+        <span class="chip" onclick="toggleRecPref(this,'快手15分钟')">⚡ 快手15分钟</span>
+        <span class="chip" onclick="toggleRecPref(this,'少油少辣照顾长辈小孩')">🍲 照顾长辈小孩</span>
+      </div>
+      <button class="btn accent" id="recMealBtn" style="width:100%;" onclick="recommendCurrentMeal()">🤖 按冰箱现存食材生成当餐食谱</button>
+      <div id="mealRecResultEl" style="margin-top:10px;"></div>
+    </div>
+
     <!-- 家庭冰箱留言条 -->
     <div class="card">
       <div class="card-head">
@@ -876,6 +915,130 @@ function updateMemberTarget(idx, field, val) {
   if (!isNaN(n) && n > 0) STATE.family.members[idx].target[field] = n;
 }
 
+async function quickAddMember(name, role) {
+  await runPatch({ op: "add_member", name, role, homeToday: true });
+}
+
+async function addCustomMember() {
+  const el = document.getElementById("newMemberName");
+  const name = el.value.trim();
+  if (!name) return;
+  const role = document.getElementById("newMemberRole").value;
+  el.value = "";
+  await runPatch({ op: "add_member", name, role, homeToday: true });
+}
+
+async function removeMember(id, name) {
+  if (!confirm("确定把「" + name + "」从家庭成员里移除吗？（若只是暂时回老家，也可以直接点上方名字设为不在家保留档案）")) return;
+  await runPatch({ op: "remove_member", id });
+}
+
+// ==================== 按冰箱现存食材推荐当餐食谱 ====================
+let REC_SLOT = (function() {
+  const h = new Date().getHours();
+  if (h < 10) return "breakfast";
+  if (h < 14) return "lunch";
+  if (h < 21) return "dinner";
+  return "snack";
+})();
+let REC_PREFS = ["临期优先"];
+let LAST_REC_DATA = null;
+
+function setRecSlot(slot) {
+  REC_SLOT = slot;
+  document.querySelectorAll("#recSlotChips .chip").forEach(c => {
+    c.classList.toggle("active", c.getAttribute("data-slot") === slot);
+  });
+}
+setRecSlot(REC_SLOT);
+
+function toggleRecPref(el, pref) {
+  const idx = REC_PREFS.indexOf(pref);
+  if (idx >= 0) {
+    REC_PREFS.splice(idx, 1);
+    el.classList.remove("active");
+  } else {
+    REC_PREFS.push(pref);
+    el.classList.add("active");
+  }
+}
+
+async function recommendCurrentMeal() {
+  const btn = document.getElementById("recMealBtn");
+  const box = document.getElementById("mealRecResultEl");
+  const old = btn.innerText;
+  btn.disabled = true;
+  btn.innerText = "🤖 正在结合冰箱库存与在家人数配菜…";
+  const res = await apiFetch("/api/recommend-meal", {
+    method: "POST",
+    body: JSON.stringify({ slot: REC_SLOT, preference: REC_PREFS.join("、") })
+  });
+  btn.disabled = false;
+  btn.innerText = old;
+  if (!res || !res.ok) return;
+  LAST_REC_DATA = res;
+  renderMealRecommendations();
+}
+
+async function pushOneRecToKindle(idx) {
+  if (!LAST_REC_DATA || !LAST_REC_DATA.dishes[idx]) return;
+  const d = LAST_REC_DATA.dishes[idx];
+  const slotPrefix = (LAST_REC_DATA.slotLabel || "晚餐") + "：";
+  const dishes = (STATE.customDishes || [{ name: "", steps: "" }, { name: "", steps: "" }, { name: "", steps: "" }]).slice();
+  const slotIdx = { breakfast: 0, lunch: 1, dinner: 2, snack: 2 }[LAST_REC_DATA.slot] ?? 2;
+  dishes[slotIdx] = { name: slotPrefix + d.name, steps: d.steps };
+  await runPatch({ op: "set_today_dishes", dishes }, "✓ 已将「" + d.name + "」推上 Kindle 今日" + LAST_REC_DATA.slotLabel);
+}
+
+async function pushAllRecToKindle() {
+  if (!LAST_REC_DATA || !LAST_REC_DATA.dishes || !LAST_REC_DATA.dishes.length) return;
+  const dishes = LAST_REC_DATA.dishes.slice(0, 3).map(d => ({ name: d.name, steps: d.steps }));
+  await runPatch({ op: "set_today_dishes", dishes }, "✓ 已将整套当餐食谱推上 Kindle 屏幕");
+}
+
+async function logRecMeal(idx) {
+  if (!LAST_REC_DATA || !LAST_REC_DATA.dishes[idx]) return;
+  const d = LAST_REC_DATA.dishes[idx];
+  await runPatch({
+    op: "log_meal",
+    slot: LAST_REC_DATA.slot || "dinner",
+    scope: "family",
+    title: d.name,
+    kcal: d.kcal,
+    protein: d.protein,
+    carb: d.carb,
+    fat: d.fat,
+    source: "web"
+  }, "✓ 已将「" + d.name + "」记入今日全家营养");
+}
+
+function renderMealRecommendations() {
+  const box = document.getElementById("mealRecResultEl");
+  if (!LAST_REC_DATA) { box.innerHTML = ""; return; }
+  const r = LAST_REC_DATA;
+  let html = '<div style="background:var(--accent-soft);border:1.5px dashed var(--accent);border-radius:12px;padding:9px 11px;font-size:12.5px;font-weight:700;color:#9a3412;margin-bottom:9px;line-height:1.5;">' +
+    '🎯 <b>' + esc(r.slotLabel) + '方案（' + r.homeCount + '人在家：' + esc((r.homeNames || []).join("、")) + '）</b><br>' + esc(r.summary) +
+  '</div>';
+  html += (r.dishes || []).map((d, idx) =>
+    '<div style="border:1.5px solid var(--ink);border-radius:14px;padding:10px 11px;margin-bottom:8px;background:#fafaf8;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:4px;">' +
+        '<span style="font-size:14.5px;font-weight:900;">' + (idx + 1) + '. ' + esc(d.name) + '</span>' +
+        '<span class="days-pill">蛋白' + d.protein + 'g · ' + d.kcal + 'kcal</span>' +
+      '</div>' +
+      '<div class="item-sub" style="margin-bottom:4px;">🧊 <b>现存食材</b>：' + esc((d.usedInventory || []).join(" / ") || "冰箱现有食材") + ' · <b>份量</b>：' + esc(d.portionNote || "") + '</div>' +
+      '<div style="font-size:12.5px;line-height:1.45;margin-bottom:7px;color:#222;">做法：' + esc(d.steps || "") + '</div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
+        '<button class="btn sm" onclick="pushOneRecToKindle(' + idx + ')">📌 设为当餐上 Kindle</button>' +
+        '<button class="btn outline sm" onclick="logRecMeal(' + idx + ')">✅ 记入今日营养</button>' +
+      '</div>' +
+    '</div>'
+  ).join("");
+  if ((r.dishes || []).length > 1) {
+    html += '<button class="btn outline" style="width:100%;" onclick="pushAllRecToKindle()">📌 整套食谱全部推上 Kindle 今日菜品</button>';
+  }
+  box.innerHTML = html;
+}
+
 // ==================== 留言条、周备餐与设置 ====================
 async function saveFridgeNote() {
   const text = document.getElementById("noteInput").value.trim();
@@ -1084,7 +1247,13 @@ function renderNutrition() {
 
   document.getElementById("memberTargetsEl").innerHTML = members.map((m, idx) =>
     '<div class="item-row" style="flex-direction:column;align-items:stretch;gap:6px;">' +
-      '<div class="item-title">' + esc(m.name) + ' <span class="item-sub">(' + esc(m.role) + ')</span></div>' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">' +
+        '<div class="item-title">' + esc(m.name) + ' <span class="item-sub">(' + esc(m.role) + ')</span></div>' +
+        '<div style="display:flex;gap:5px;align-items:center;">' +
+          '<button class="btn sm ' + (m.homeToday ? "accent" : "outline") + '" onclick="toggleMemberHome(\'' + esc(m.id) + '\')">' + (m.homeToday ? "✓ 在家" : "不在家") + '</button>' +
+          (m.isPrimary ? '<span class="days-pill">主账号</span>' : '<button class="btn outline sm" onclick="removeMember(\'' + esc(m.id) + '\',\'' + esc(m.name) + '\')">删除</button>') +
+        '</div>' +
+      '</div>' +
       '<div class="form-row" style="margin-bottom:0;">' +
         '<label style="font-size:11.5px;font-weight:800;">蛋白<input type="number" value="' + m.target.protein + '" onchange="updateMemberTarget(' + idx + ',\'protein\',this.value)" style="width:62px;padding:4px 6px;margin-left:3px;"></label>' +
         '<label style="font-size:11.5px;font-weight:800;">碳水<input type="number" value="' + m.target.carb + '" onchange="updateMemberTarget(' + idx + ',\'carb\',this.value)" style="width:62px;padding:4px 6px;margin-left:3px;"></label>' +
@@ -1096,6 +1265,9 @@ function renderNutrition() {
 }
 
 function renderPlanAndSettings() {
+  const homeMembers = ((STATE.family && STATE.family.members) || []).filter(m => m.homeToday !== false);
+  const metaEl = document.getElementById("recHomeCountMeta");
+  if (metaEl) metaEl.innerText = "当前在家 " + homeMembers.length + " 人 (" + homeMembers.map(m => m.name).join("、") + ")";
   document.getElementById("noteInput").value = (STATE.fridgeNote && STATE.fridgeNote.text) || "";
 
   const wkDays = (WEEKLY_GAPS && WEEKLY_GAPS.days) || [];
