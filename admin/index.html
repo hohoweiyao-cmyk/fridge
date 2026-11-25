@@ -3,683 +3,1133 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>冰箱看板 · 手机管理台</title>
+<title>家里冰箱 · AI 对话与库存看板</title>
 <style>
   :root {
-    --bg: #f5f5f3;
+    --bg: #ecece9;
     --card: #ffffff;
-    --ink: #141413;
-    --muted: #666560;
-    --border: #dedcd6;
-    --radius: 12px;
+    --ink: #141414;
+    --muted: #5a5a56;
+    --border: #141414;
+    --soft-border: #cfcfc9;
+    --accent: #e85d04;
+    --accent-soft: #fff1e8;
+    --ok: #15803d;
+    --radius: 16px;
+    --pill: 999px;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   body {
     background: var(--bg);
     color: var(--ink);
     font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
-    padding-bottom: 90px;
+    padding-bottom: 84px;
+    font-variant-numeric: tabular-nums;
   }
+
+  /* 顶部黑底状态栏 */
   .topbar {
     background: var(--ink);
     color: #fff;
-    padding: 15px 18px;
+    padding: 13px 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     position: sticky;
     top: 0;
-    z-index: 20;
+    z-index: 30;
   }
-  .topbar h1 { font-size: 16px; font-weight: 700; }
-  .topbar a {
+  .topbar-left { display: flex; align-items: center; gap: 8px; }
+  .topbar h1 { font-size: 16px; font-weight: 800; letter-spacing: -0.2px; }
+  .pill-live {
+    background: var(--accent);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 9px;
+    border-radius: var(--pill);
+  }
+  .topbar-link {
     color: #fff;
     text-decoration: none;
-    font-size: 13px;
-    border: 1px solid rgba(255,255,255,0.4);
-    padding: 5px 11px;
-    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1.5px solid rgba(255,255,255,0.45);
+    padding: 4px 10px;
+    border-radius: var(--pill);
   }
+
   .container {
     max-width: 600px;
     margin: 0 auto;
-    padding: 14px;
+    padding: 12px 13px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 13px;
   }
+
+  /* B 方案胶囊卡片 + C 方案高对比黑白描边 */
   .card {
     background: var(--card);
-    border: 1.5px solid var(--border);
+    border: 1.8px solid var(--border);
     border-radius: var(--radius);
-    padding: 16px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+    padding: 14px;
+  }
+  .card.dark {
+    background: var(--ink);
+    color: #fff;
   }
   .card-head {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
-    padding-bottom: 8px;
-    border-bottom: 1.5px solid var(--ink);
+    gap: 8px;
+    margin-bottom: 11px;
   }
-  .card-title {
-    font-size: 15.5px;
-    font-weight: 800;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .badge-dark {
+  .card-badge {
     background: var(--ink);
     color: #fff;
-    font-size: 11px;
-    padding: 2px 8px;
-    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 800;
+    padding: 3px 12px;
+    border-radius: var(--pill);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
   }
-  .hint-box {
-    background: #f4f3ef;
-    border-left: 3px solid var(--ink);
-    padding: 8px 11px;
-    font-size: 12.5px;
-    color: #444;
-    margin-bottom: 12px;
-    line-height: 1.45;
-    border-radius: 4px;
-  }
+  .card-badge.orange { background: var(--accent); }
+  .card-meta { font-size: 12px; font-weight: 700; color: var(--muted); }
+  .card.dark .card-meta { color: #ccc; }
+
+  /* 表单与按钮（B 方案胶囊 + C 方案高对比信号橙） */
   .form-row {
     display: flex;
-    gap: 8px;
-    margin-bottom: 10px;
+    gap: 7px;
+    margin-bottom: 9px;
     flex-wrap: wrap;
     align-items: center;
   }
   input, select, textarea {
-    border: 1.5px solid #bbb9b2;
-    border-radius: 8px;
+    border: 1.6px solid var(--border);
+    border-radius: 12px;
     padding: 9px 11px;
     font-size: 14px;
     background: #fff;
     color: var(--ink);
     font-family: inherit;
   }
-  input:focus, textarea:focus {
+  input:focus, select:focus, textarea:focus {
     outline: none;
-    border-color: var(--ink);
-  }
-  textarea {
-    width: 100%;
-    min-height: 70px;
-    resize: vertical;
+    border-color: var(--accent);
   }
   .btn {
     background: var(--ink);
     color: #fff;
-    border: none;
-    border-radius: 8px;
-    padding: 9px 14px;
-    font-size: 13.5px;
-    font-weight: 600;
+    border: 1.6px solid var(--ink);
+    border-radius: var(--pill);
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 800;
     cursor: pointer;
+    font-family: inherit;
   }
-  .btn-outline {
+  .btn.accent {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .btn.outline {
     background: #fff;
     color: var(--ink);
-    border: 1.5px solid var(--ink);
+    border-color: var(--ink);
   }
-  .btn-sm {
-    padding: 4px 9px;
-    font-size: 12px;
-    border-radius: 6px;
-  }
-  .quick-chips {
+  .btn.sm { padding: 4px 10px; font-size: 12px; }
+  .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  .chips {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
   }
   .chip {
-    background: #efede8;
-    border: 1px solid #d4d1c9;
-    border-radius: 16px;
-    padding: 4px 10px;
+    background: #fff;
+    color: var(--ink);
+    border: 1.5px solid var(--ink);
+    border-radius: var(--pill);
+    padding: 4px 11px;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 800;
     cursor: pointer;
   }
-  .item-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+  .chip.active {
+    background: var(--ink);
+    color: #fff;
   }
+  .chip.orange {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  /* 列表行 */
   .item-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 9px 11px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: #faf9f6;
+    padding: 9px 0;
+    border-bottom: 1px dashed var(--soft-border);
     gap: 8px;
   }
-  .item-main {
+  .item-row:last-child { border-bottom: none; padding-bottom: 2px; }
+  .item-main { flex: 1; min-width: 0; }
+  .item-title { font-size: 14.5px; font-weight: 800; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+  .item-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .item-actions { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+
+  .days-pill {
+    font-size: 11.5px;
+    font-weight: 800;
+    padding: 2px 9px;
+    border-radius: var(--pill);
+    border: 1.5px solid var(--ink);
+    white-space: nowrap;
+  }
+  .days-pill.urgent {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  /* C 方案分段刻度进度条 */
+  .seg-track {
+    height: 11px;
+    border: 1.6px solid var(--ink);
+    border-radius: var(--pill);
+    overflow: hidden;
+    margin-top: 5px;
+    background: repeating-linear-gradient(90deg, #fff 0, #fff 8px, #d6d6d0 8px, #d6d6d0 9.5px);
+  }
+  .seg-fill {
+    height: 100%;
+    background: var(--ink);
+    transition: width 0.25s ease;
+  }
+  .seg-fill.orange { background: var(--accent); }
+
+  /* AI 对话窗口 */
+  .chat-feed {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    flex: 1;
+    gap: 10px;
+    min-height: 170px;
+    max-height: 390px;
+    overflow-y: auto;
+    padding: 4px 2px;
   }
-  .item-title { font-size: 14.5px; font-weight: 700; }
-  .item-sub { font-size: 12px; color: var(--muted); line-height: 1.4; }
-  .item-actions {
+  .bubble-ai {
+    align-self: flex-start;
+    max-width: 92%;
+    background: #fff;
+    border: 1.6px solid var(--ink);
+    border-radius: 16px 16px 16px 4px;
+    padding: 10px 12px;
+    font-size: 13.5px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+  }
+  .bubble-user {
+    align-self: flex-end;
+    max-width: 86%;
+    background: var(--ink);
+    color: #fff;
+    border-radius: 16px 16px 4px 16px;
+    padding: 9px 13px;
+    font-size: 13.5px;
+    line-height: 1.45;
+  }
+  .bubble-tag {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 800;
+    background: var(--accent);
+    color: #fff;
+    padding: 1px 8px;
+    border-radius: var(--pill);
+    margin-bottom: 5px;
+  }
+  .bubble-sync {
+    margin-top: 6px;
+    padding: 4px 9px;
+    border-radius: var(--pill);
+    background: var(--accent-soft);
+    border: 1px dashed var(--accent);
+    color: #9a3412;
+    font-size: 11.5px;
+    font-weight: 800;
+    display: inline-block;
+  }
+  .chat-composer {
     display: flex;
+    gap: 7px;
     align-items: center;
-    gap: 5px;
-    flex-shrink: 0;
+    background: #fff;
+    border: 1.8px solid var(--ink);
+    border-radius: var(--pill);
+    padding: 5px 6px 5px 13px;
   }
-  .slot-box {
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px;
-    margin-bottom: 8px;
-    background: #faf9f6;
+  .chat-composer input {
+    border: none;
+    padding: 6px 0;
+    flex: 1;
+    font-size: 14px;
+    background: transparent;
   }
-  .slot-lbl {
-    font-size: 12px;
-    font-weight: 700;
-    margin-bottom: 6px;
-    display: flex;
-    justify-content: space-between;
-  }
-  .save-bar {
+
+  /* 底部 4 栏导航（方案 C 黑底 + 信号橙激活胶囊） */
+  .bottom-nav {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    background: rgba(255,255,255,0.96);
-    border-top: 1.5px solid var(--border);
-    padding: 12px 16px;
-    display: flex;
-    justify-content: center;
-    z-index: 30;
-  }
-  .save-btn {
-    width: 100%;
-    max-width: 570px;
     background: var(--ink);
-    color: #fff;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    z-index: 40;
+    max-width: 640px;
+    margin: 0 auto;
+    border-top: 2px solid #000;
+  }
+  .nav-btn {
     border: none;
-    border-radius: 10px;
-    padding: 13px;
-    font-size: 16px;
+    background: transparent;
+    color: #b8b8b2;
+    border-radius: var(--pill);
+    padding: 8px 4px;
+    font-size: 12px;
     font-weight: 800;
     cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .nav-btn.active {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  /* 密钥提示条 & Toast */
+  .auth-banner {
+    background: #fff1e8;
+    border: 1.8px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 12px;
+    display: none;
   }
   .toast {
     position: fixed;
-    top: 64px;
+    top: 62px;
     left: 50%;
     transform: translateX(-50%);
-    background: #15803d;
+    background: var(--ink);
     color: #fff;
-    padding: 8px 18px;
-    border-radius: 20px;
+    border: 1.5px solid var(--accent);
+    padding: 8px 16px;
+    border-radius: var(--pill);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 800;
     display: none;
-    z-index: 50;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 60;
+    max-width: 90%;
+    text-align: center;
   }
+  .pane { display: none; flex-direction: column; gap: 13px; }
+  .pane.active { display: flex; }
 </style>
 </head>
 <body>
 <div class="topbar">
-  <h1>📟 Kindle 7 冰箱看板管理</h1>
-  <a href="https://hohoweiyao-cmyk.github.io/fridge/" target="_blank">查看看板画面 ▸</a>
+  <div class="topbar-left">
+    <h1>🧊 家里冰箱 AI 助手</h1>
+    <span class="pill-live" id="syncBadge">连接中</span>
+  </div>
+  <a class="topbar-link" href="https://hohoweiyao-cmyk.github.io/fridge/" target="_blank">Kindle 画面 ▸</a>
 </div>
-<div class="toast" id="toast">✓ 已保存并同步到冰箱看板</div>
+
+<div class="toast" id="toast">✓ 已同步</div>
 
 <div class="container">
-  <!-- 1. 今日推荐菜品设定（支持自选 0~3 道 + 其余 AI 按冰箱食材自动生成） -->
-  <div class="card">
-    <div class="card-head">
-      <div class="card-title">🍽️ 今日菜品推荐 (自选 + AI 自动补齐)</div>
-      <span class="badge-dark">共展示 3 道</span>
-    </div>
-    <div class="hint-box">
-      💡 你可以自己输入今天想吃的菜（比如只填 1 道「可乐鸡翅」），<b>没填的空位会自动根据下方冰箱现有食材由 AI 推荐补齐满 3 道</b>；如果只填菜名不填做法，系统也会自动生成 3 步做法！
-    </div>
-    <div id="customDishSlots"></div>
-    <div style="display:flex;gap:8px;margin-top:10px;">
-      <button class="btn" id="aiGenBtn" onclick="triggerAiRecipes()" style="flex:1;">🤖 根据冰箱现有食材 AI 重新生成推荐菜谱与做法</button>
-      <button class="btn btn-outline" onclick="clearCustomDishes()">清空自选</button>
+  <!-- 密钥引导（仅在开启鉴权且未带 ?key= 时出现） -->
+  <div class="auth-banner" id="authBanner">
+    <div style="font-size:13.5px;font-weight:800;color:#9a3412;margin-bottom:6px;">🔐 请输入家庭专属密钥（或直接从家庭微信群置顶链接打开即可免输）</div>
+    <div class="form-row" style="margin-bottom:0;">
+      <input id="keyInput" placeholder="输入家庭密钥" style="flex:1;">
+      <button class="btn accent" onclick="saveKeyManual()">确认</button>
     </div>
   </div>
 
-  <!-- 2. 冰箱库存与 3 个月保质期提醒 -->
-  <div class="card">
-    <div class="card-head">
-      <div class="card-title">🥛 冰箱现有食材 & 保质期提醒</div>
-      <span class="badge-dark">AI 配菜依据 & ≤90天提醒</span>
+  <!-- ==================== 栏 1：AI 对话助手（全家默认页） ==================== -->
+  <div class="pane active" id="pane-chat">
+    <div class="card">
+      <div class="card-head">
+        <span class="card-badge orange">💬 冰箱 AI 管家</span>
+        <div style="display:flex;gap:4px;">
+          <span class="chip sm" id="who-sige" onclick="setAuthor('四哥')">四哥</span>
+          <span class="chip sm active" id="who-wife" onclick="setAuthor('老婆')">老婆</span>
+          <span class="chip sm" id="who-parents" onclick="setAuthor('爸妈')">爸妈</span>
+        </div>
+      </div>
+
+      <div class="chat-feed" id="chatFeed">
+        <div class="bubble-ai"><span class="bubble-tag">实时连着门上 Kindle</span><br>你好！买菜回来直接用键盘语音或打字告诉我买了啥、吃了啥、想查冰箱有啥，我自动记账并同步到 Kindle 冰箱屏。</div>
+      </div>
+
+      <div style="margin:10px 0 8px;">
+        <div class="chips" style="margin-bottom:0;">
+          <span class="chip" onclick="quickAsk('冰箱里还有啥快过期的？')">🧊 查临期库存</span>
+          <span class="chip" onclick="quickAsk('今晚吃什么，蛋白质够不够？')">🍽 今晚吃什么</span>
+          <span class="chip" onclick="quickAsk('刚买了1斤鸡胸肉放冷冻，2盒鲜牛奶放冷藏')">🛒 示例：买菜入库</span>
+          <span class="chip" onclick="quickAsk('给冰箱留句话：今晚回家晚，先吃卤牛肉')">💬 示例：留句话</span>
+        </div>
+      </div>
+
+      <div class="chat-composer">
+        <input id="chatInput" placeholder="点键盘语音或打字：刚买了… / 冰箱还有啥…" onkeydown="if(event.key==='Enter')sendChat()">
+        <button class="btn accent sm" id="chatSendBtn" onclick="sendChat()">发送</button>
+      </div>
     </div>
-    <div class="quick-chips">
-      <span class="chip" onclick="quickAdd('鲜牛奶', '冷藏上层', 3)">+ 鲜牛奶 (3天)</span>
-      <span class="chip" onclick="quickAdd('鲜牛腩', '0°C保鲜层', 2)">+ 鲜牛腩 (2天)</span>
-      <span class="chip" onclick="quickAdd('排骨 / 猪肉', '冷冻/保鲜', 5)">+ 排骨猪肉 (5天)</span>
-      <span class="chip" onclick="quickAdd('焙煎芝麻沙拉酱', '门架', 30)">+ 沙拉酱 (30天)</span>
-      <span class="chip" onclick="quickAdd('味极鲜蚝油', '开封后', 45)">+ 开封蚝油 (45天)</span>
-      <span class="chip" onclick="quickAdd('黄油 / 芝士片', '冷藏抽屉', 60)">+ 黄油芝士 (60天)</span>
+
+    <!-- 快捷现状卡片 -->
+    <div class="card dark">
+      <div class="card-head" style="margin-bottom:6px;">
+        <span class="card-badge orange">⚡ 冰箱实时摘要</span>
+        <span class="card-meta" id="chatSummaryMeta">加载中…</span>
+      </div>
+      <div id="chatSummaryBody" style="font-size:13px;line-height:1.55;"></div>
     </div>
-    <div class="form-row">
-      <input id="invName" placeholder="食材/酱料名 (如 鲜牛奶/排骨)" style="flex:2;min-width:120px;">
-      <input id="invLoc" placeholder="位置 (如 冷藏上层/门架)" style="flex:1.3;min-width:95px;">
-      <input id="invDays" type="number" placeholder="剩几天" style="width:74px;" value="7">
-      <button class="btn" onclick="addInventory()">添加</button>
-    </div>
-    <div class="item-list" id="invList"></div>
   </div>
 
-  <!-- 3. 待买补货清单（底部双列展示） -->
-  <div class="card">
-    <div class="card-head">
-      <div class="card-title">🛒 待买补货清单</div>
-      <span class="badge-dark">底部双列展示 (最多8项)</span>
+  <!-- ==================== 栏 2：冰箱全库存 & 待买一键入库 ==================== -->
+  <div class="pane" id="pane-inv">
+    <!-- 待买补货 + 一键入库 -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-badge">🛒 待买补货清单</span>
+        <button class="btn accent sm" onclick="shopToInventory()">已购一键入库</button>
+      </div>
+      <div class="chips">
+        <span class="chip" onclick="quickAddShop('鸡蛋 1盒')">+ 鸡蛋</span>
+        <span class="chip" onclick="quickAddShop('鲜牛奶 ×2')">+ 鲜牛奶</span>
+        <span class="chip" onclick="quickAddShop('小葱 / 生姜')">+ 葱姜</span>
+        <span class="chip" onclick="quickAddShop('鸡胸肉 1斤')">+ 鸡胸肉</span>
+        <span class="chip" onclick="quickAddShop('西兰花 1颗')">+ 西兰花</span>
+      </div>
+      <div class="form-row">
+        <input id="shopNameInput" placeholder="输入待买物品（如 排骨 2斤）" style="flex:1;">
+        <button class="btn sm" onclick="addShopItem()">添加</button>
+        <button class="btn outline sm" onclick="clearDoneShop()">清已购</button>
+      </div>
+      <div id="shopListEl"></div>
     </div>
-    <div class="quick-chips">
-      <span class="chip" onclick="quickAddShop('鸡蛋 1盒')">+ 鸡蛋 1盒</span>
-      <span class="chip" onclick="quickAddShop('小葱 / 生姜')">+ 小葱/生姜</span>
-      <span class="chip" onclick="quickAddShop('厨房抽纸')">+ 厨房抽纸</span>
-      <span class="chip" onclick="quickAddShop('无糖酸奶 ×2')">+ 无糖酸奶</span>
-      <span class="chip" onclick="quickAddShop('鲜虾仁 1袋')">+ 鲜虾仁</span>
-      <span class="chip" onclick="quickAddShop('生抽 / 料酒')">+ 生抽/料酒</span>
-      <span class="chip" onclick="quickAddShop('番茄 / 黄瓜')">+ 番茄/黄瓜</span>
+
+    <!-- 冰箱全库存分区管理 -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-badge">🧊 冰箱全库存 <span id="invTotalCount"></span></span>
+        <span class="card-meta">按到期日每日自动倒数</span>
+      </div>
+      <div class="form-row">
+        <input id="invName" placeholder="食材名（如 排骨/菠菜）" style="flex:2;min-width:110px;">
+        <input id="invQty" placeholder="数量（如 500g）" style="flex:1;min-width:75px;">
+      </div>
+      <div class="form-row">
+        <select id="invZone" style="flex:1;">
+          <option value="cold">❄ 冷藏</option>
+          <option value="frozen">🧊 冷冻</option>
+          <option value="pantry">📦 常温</option>
+        </select>
+        <input id="invDays" type="number" value="7" placeholder="几天" style="width:76px;">
+        <label style="font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:4px;">
+          <input type="checkbox" id="invStaple"> ★常备
+        </label>
+        <button class="btn accent sm" onclick="addInventoryItem()">入库</button>
+      </div>
+
+      <div class="chips" id="invFilterBar">
+        <span class="chip active" onclick="setInvFilter('all')">全部</span>
+        <span class="chip" onclick="setInvFilter('cold')">❄ 冷藏</span>
+        <span class="chip" onclick="setInvFilter('frozen')">🧊 冷冻</span>
+        <span class="chip" onclick="setInvFilter('urgent')">🔥 临期(≤3天)</span>
+        <span class="chip" onclick="setInvFilter('staple')">★ 常备品</span>
+      </div>
+      <div id="invListEl"></div>
     </div>
-    <div class="form-row">
-      <input id="shopNameInput" placeholder="输入待买物品名称 (如 鸡蛋 1盒)" style="flex:1;">
-      <button class="btn" onclick="addShopItem()">+ 添加</button>
-      <button class="btn btn-outline" onclick="clearDoneShop()">清理已购</button>
-    </div>
-    <div class="item-list" id="shopAdminList"></div>
   </div>
 
-  <!-- 4. 天气城市（默认郑州） & 生日纪念日倒计时 -->
-  <div class="card">
-    <div class="card-head">
-      <div class="card-title">🌤️ 天气所在城市 & 纪念日倒计时</div>
-      <span class="badge-dark">顶部栏</span>
-    </div>
-    <div class="form-row" style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px dashed var(--border);">
-      <span style="font-size:14px;font-weight:700;">当前城市：</span>
-      <select id="citySelect" onchange="changeCity(this.value)" style="flex:1;min-width:110px;">
-        <option value="郑州|34.7466|113.6253">郑州 (默认)</option>
-        <option value="洛阳|34.6197|112.4540">洛阳</option>
-        <option value="开封|34.7972|114.3076">开封</option>
-        <option value="新乡|35.3030|113.9268">新乡</option>
-        <option value="许昌|34.0357|113.8526">许昌</option>
-        <option value="南阳|32.9908|112.5283">南阳</option>
-        <option value="北京|39.9042|116.4074">北京</option>
-        <option value="上海|31.2304|121.4737">上海</option>
-        <option value="广州|23.1291|113.2644">广州</option>
-        <option value="深圳|22.5431|114.0579">深圳</option>
-        <option value="杭州|30.2741|120.1551">杭州</option>
-        <option value="成都|30.5728|104.0668">成都</option>
-        <option value="武汉|30.5928|114.3055">武汉</option>
-        <option value="南京|32.0603|118.7969">南京</option>
-        <option value="西安|34.3416|108.9398">西安</option>
-      </select>
-      <input id="customCityInput" placeholder="或其他城市名" style="width:115px;">
-      <button class="btn btn-outline btn-sm" onclick="searchCustomCity()">切换城市</button>
+  <!-- ==================== 栏 3：营养摄入 & 在家人口 ==================== -->
+  <div class="pane" id="pane-nut">
+    <div class="card">
+      <div class="card-head">
+        <span class="card-badge">🏠 今天谁在家吃饭？</span>
+        <span class="card-meta">点选立即重算目标</span>
+      </div>
+      <div class="chips" id="memberHomeChips"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;">
+        <button class="btn" id="btnNutFamily" onclick="setNutView('family')">👨‍👩‍👧‍👦 全家汇总</button>
+        <button class="btn outline" id="btnNutPersonal" onclick="setNutView('personal')">💪 四哥个人·薄肌</button>
+      </div>
     </div>
 
-    <div class="hint-box">
-      📌 看板顶部共 3 列：<b>前 2 列</b>自动取你在下方设置的最近 2 个纪念日/生日；<b>第 3 列</b>由系统全自动计算距离最近的节日（元旦、除夕、新年、元宵、清明、五一、端午、中秋、国庆），无需手动添加节日。
+    <div class="card">
+      <div class="card-head">
+        <span class="card-badge orange" id="nutHeadline">今日营养进度</span>
+        <span class="card-meta" id="nutKcalText">0 / 0 kcal</span>
+      </div>
+      <div id="nutBarsEl"></div>
     </div>
-    <div class="form-row">
-      <input id="evIcon" placeholder="图标" value="🎂" style="width:48px;text-align:center;">
-      <input id="evTitle" placeholder="纪念日/生日名称" style="flex:1;min-width:110px;">
-      <select id="evCalendar" style="width:76px;padding:9px 6px;">
-        <option value="solar">阳历</option>
-        <option value="lunar">阴历</option>
-      </select>
-      <input id="evMonth" type="number" min="1" max="12" placeholder="月" style="width:54px;">
-      <input id="evDay" type="number" min="1" max="31" placeholder="日" style="width:54px;">
-      <button class="btn" onclick="addEvent()">添加</button>
+
+    <div class="card dark">
+      <div class="card-head" style="margin-bottom:6px;">
+        <span class="card-badge orange">🎯 缺口 × 冰箱库存联动建议</span>
+      </div>
+      <div id="nutAdviceEl" style="font-size:13.5px;line-height:1.55;"></div>
     </div>
-    <div class="item-list" id="evList"></div>
+
+    <div class="card">
+      <div class="card-head">
+        <span class="card-badge">🍽 记录今日一餐</span>
+        <span class="card-meta">自动估算碳/蛋/脂</span>
+      </div>
+      <div class="form-row">
+        <select id="mealSlot" style="width:82px;">
+          <option value="breakfast">早餐</option>
+          <option value="lunch">午餐</option>
+          <option value="dinner" selected>晚餐</option>
+          <option value="snack">加餐</option>
+        </select>
+        <select id="mealScope" style="width:94px;">
+          <option value="family">全家吃</option>
+          <option value="personal">我自己</option>
+        </select>
+        <input id="mealTitle" placeholder="吃了啥（如 卤牛肉拌生菜+米饭）" style="flex:1;min-width:140px;">
+        <button class="btn accent sm" onclick="addMealLog()">记一餐</button>
+      </div>
+      <div id="mealLogListEl"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <span class="card-badge">⚙️ 家庭成员每日目标</span>
+        <button class="btn sm" onclick="saveFullState()">保存调整</button>
+      </div>
+      <div id="memberTargetsEl"></div>
+    </div>
   </div>
 
-  <!-- 5. 当前 AI 菜谱库预览 -->
-  <div class="card">
-    <div class="card-head">
-      <div class="card-title">📖 自动生成的菜谱池预览</div>
-      <span class="badge-dark">点击「换一批」轮换</span>
+  <!-- ==================== 栏 4：备餐、留言条与看板设置 ==================== -->
+  <div class="pane" id="pane-plan">
+    <!-- 家庭冰箱留言条 -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-badge orange">💬 冰箱顶部高亮留言条</span>
+        <span class="card-meta">实时挂在 Kindle 最上方</span>
+      </div>
+      <div class="form-row">
+        <input id="noteInput" placeholder="例如：今晚加班不回家吃，给娃温牛奶" style="flex:1;">
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn accent" style="flex:1;" onclick="saveFridgeNote()">挂上 Kindle 屏</button>
+        <button class="btn outline" onclick="clearFridgeNote()">清空留言</button>
+      </div>
     </div>
-    <div class="item-list" id="recList"></div>
+
+    <!-- 一周备餐与缺口反推待买 -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-badge">📅 一周备餐 &amp; 缺口对账</span>
+        <button class="btn accent sm" onclick="syncWeeklyGaps()">缺口一键进待买</button>
+      </div>
+      <div class="form-row">
+        <select id="wkDay" style="width:78px;">
+          <option>周一</option><option>周二</option><option>周三</option><option>周四</option><option>周五</option><option>周六</option><option>周日</option>
+        </select>
+        <input id="wkDish" placeholder="菜名（如 番茄羊蝎子锅）" style="flex:1;min-width:110px;">
+        <input id="wkIngs" placeholder="所需食材，逗号分隔" style="flex:1;min-width:110px;">
+        <button class="btn sm" onclick="addWeeklyDay()">添加</button>
+      </div>
+      <div id="weeklyPlanEl"></div>
+    </div>
+
+    <!-- 今日三餐 / 自定义菜品 -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-badge">🍳 Kindle 主页三餐 / 菜品</span>
+        <button class="btn sm" onclick="triggerAiRecipes()">🤖 AI 推荐</button>
+      </div>
+      <div id="customDishesEl"></div>
+      <button class="btn accent" style="width:100%;margin-top:6px;" onclick="saveFullState()">💾 保存三餐与纪念日设置</button>
+    </div>
+
+    <!-- 城市、纪念日 & 家庭群免密分享链接 -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-badge">🌤️ 城市 / 纪念日 / 群分享</span>
+      </div>
+      <div class="form-row">
+        <span style="font-size:13px;font-weight:800;">城市：</span>
+        <select id="citySelect" onchange="changeCity(this.value)" style="flex:1;">
+          <option value="郑州|34.7466|113.6253">郑州</option>
+          <option value="洛阳|34.6197|112.4540">洛阳</option>
+          <option value="北京|39.9042|116.4074">北京</option>
+          <option value="上海|31.2304|121.4737">上海</option>
+          <option value="广州|23.1291|113.2644">广州</option>
+          <option value="深圳|22.5431|114.0579">深圳</option>
+          <option value="杭州|30.2741|120.1551">杭州</option>
+          <option value="成都|30.5728|104.0668">成都</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <input id="evIcon" value="🎂" style="width:46px;text-align:center;">
+        <input id="evTitle" placeholder="纪念日名称" style="flex:1;min-width:90px;">
+        <select id="evCalendar" style="width:72px;"><option value="lunar">阴历</option><option value="solar">阳历</option></select>
+        <input id="evMonth" type="number" min="1" max="12" placeholder="月" style="width:52px;">
+        <input id="evDay" type="number" min="1" max="31" placeholder="日" style="width:52px;">
+        <button class="btn sm" onclick="addEvent()">添加</button>
+      </div>
+      <div id="evListEl"></div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--soft-border);display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <span style="font-size:12px;color:var(--muted);">发到家庭微信群置顶即可免密共用</span>
+        <button class="btn outline sm" onclick="copyShareLink()">📋 复制家庭群免密链接</button>
+      </div>
+    </div>
   </div>
 </div>
 
-<div class="save-bar">
-  <button class="save-btn" onclick="saveAll()">💾 保存并刷新冰箱看板</button>
+<!-- 底部 4 栏导航 -->
+<div class="bottom-nav">
+  <button class="nav-btn active" id="nav-chat" onclick="switchPane('chat')">💬 AI 助手</button>
+  <button class="nav-btn" id="nav-inv" onclick="switchPane('inv')">🧊 冰箱库存</button>
+  <button class="nav-btn" id="nav-nut" onclick="switchPane('nut')">🥗 营养人数</button>
+  <button class="nav-btn" id="nav-plan" onclick="switchPane('plan')">📅 备餐设置</button>
 </div>
 
 <script>
-var STATE = {"city":{"name":"郑州","lat":34.7466,"lon":113.6253},"events":[{"id":"ev1","icon":"🎂","title":"妈妈生日","calendar":"lunar","month":10,"day":26},{"id":"ev2","icon":"💍","title":"纪念日","calendar":"solar","month":12,"day":20}],"customDishes":[{"name":"","steps":""},{"name":"","steps":""},{"name":"","steps":""}],"inventory":[{"id":"i1","name":"鲜牛奶","location":"冷藏上层","keywords":["牛奶"],"daysLeft":2,"updatedAt":"2026-11-22"},{"id":"i2","name":"鲜牛腩","location":"0°C保鲜层","keywords":["牛腩","牛肉"],"daysLeft":1,"updatedAt":"2026-11-22"},{"id":"i3","name":"番茄 / 土豆","location":"果蔬盒","keywords":["番茄","土豆"],"daysLeft":5,"updatedAt":"2026-11-22"},{"id":"i4","name":"生菜 / 小葱","location":"果蔬盒","keywords":["生菜","葱"],"daysLeft":4,"updatedAt":"2026-11-22"},{"id":"i5","name":"鸡蛋 (1盒)","location":"冷藏门架","keywords":["鸡蛋"],"daysLeft":14,"updatedAt":"2026-11-22"},{"id":"i6","name":"焙煎芝麻沙拉酱","location":"门架","keywords":["沙拉酱"],"daysLeft":18,"updatedAt":"2026-11-22","showInExpiry":true},{"id":"i7","name":"味极鲜蚝油","location":"开封后","keywords":["蚝油"],"daysLeft":42,"updatedAt":"2026-11-22","showInExpiry":true},{"id":"i8","name":"黄油 / 芝士片","location":"冷藏抽屉","keywords":["黄油","芝士"],"daysLeft":60,"updatedAt":"2026-11-22","showInExpiry":true}],"expiryDisplayIds":["i1","i6","i7","i8"],"recipes":[{"id":"r1","name":"番茄土豆炖牛腩","ingredients":["牛腩","番茄","土豆"],"steps":"1.牛腩冷水下锅加姜料酒焯水；2.番茄炒出沙加开水慢炖40分钟；3.加入土豆块炖15分钟加盐收汁。"},{"id":"r2","name":"蒜蓉蚝油生菜","ingredients":["生菜","蚝油"],"steps":"1.生菜洗净，沸水加少许油盐烫15秒捞出；2.热油爆香蒜末，加1勺蚝油、半勺生抽与少许水煮开；3.淋在生菜上即可。"},{"id":"r3","name":"芝士玉米厚蛋烧","ingredients":["鸡蛋","芝士","牛奶"],"steps":"1.3颗鸡蛋加2勺牛奶与少许盐打散；2.平底锅刷黄油倒蛋液，铺上芝士片卷起；3.推至锅边再倒蛋液卷2次切段。"},{"id":"r4","name":"番茄滑蛋盖饭","ingredients":["番茄","鸡蛋","葱"],"steps":"1.鸡蛋打散炒至八分熟盛出；2.番茄切块炒出浓郁红汁，加半碗水与少许糖盐；3.倒回鸡蛋翻炒裹满汤汁撒葱花。"},{"id":"r5","name":"黑椒黄油煎牛腩粒","ingredients":["牛腩","黄油","土豆"],"steps":"1.牛腩与土豆切丁，土豆煎至金黄；2.融化黄油下牛肉粒大火快煎锁汁；3.撒现磨黑胡椒与少许蚝油翻匀出锅。"},{"id":"r6","name":"凯撒沙拉拌鲜蔬","ingredients":["生菜","沙拉酱","鸡蛋","番茄"],"steps":"1.鸡蛋冷水下锅煮8分钟切块；2.生菜撕小块与圣女果/番茄铺底；3.淋上焙煎芝麻沙拉酱拌匀即食。"},{"id":"r7","name":"牛奶炖滑嫩蒸蛋","ingredients":["鸡蛋","牛奶"],"steps":"1.鸡蛋2颗打散，兑入1.5倍温牛奶加少许盐撇去浮沫；2.盖保鲜膜扎孔水开蒸10分钟；3.出锅淋少许生抽香油。"}],"shoppingList":[{"id":"s1","name":"鸡蛋 1盒","done":false},{"id":"s2","name":"小葱 / 生姜","done":false},{"id":"s3","name":"厨房抽纸","done":false},{"id":"s4","name":"无糖酸奶 ×2","done":false},{"id":"s5","name":"鲜虾仁 1袋","done":false},{"id":"s6","name":"生抽 / 料酒","done":false}],"updatedAt":"2026-11-22 23:50"};
-if (!Array.isArray(STATE.customDishes)) {
-  STATE.customDishes = [{ name: "", steps: "" }, { name: "", steps: "" }, { name: "", steps: "" }];
-}
-if (!Array.isArray(STATE.shoppingList)) {
-  STATE.shoppingList = [
-    { id: "s1", name: "鸡蛋 1盒", done: false },
-    { id: "s2", name: "小葱 / 生姜", done: false },
-    { id: "s3", name: "厨房抽纸", done: false },
-    { id: "s4", name: "无糖酸奶 ×2", done: false },
-    { id: "s5", name: "鲜虾仁 1袋", done: false },
-    { id: "s6", name: "生抽 / 料酒", done: false }
-  ];
-}
+const API_ENDPOINTS = [
+  "https://1330653375-kee5znqxpt.ap-hongkong.tencentscf.com",
+  "https://1330653375-23yvd9p1q1.ap-guangzhou.tencentscf.com",
+  "https://kindle7-fridge-board.hohoweiyao.workers.dev"
+];
+let ACTIVE_API = API_ENDPOINTS[0];
+let FAMILY_KEY = "";
+let STATE = null;
+let NUT = { family: null, personal: null };
+let WEEKLY_GAPS = { days: [], allMissing: [] };
+let CUR_PANE = "chat";
+let INV_FILTER = "all";
+let NUT_VIEW = "family";
+let AUTHOR = localStorage.getItem("fridge_author") || "老婆";
+
+(function initKey() {
+  const qs = new URLSearchParams(window.location.search);
+  const urlKey = qs.get("key");
+  if (urlKey) {
+    FAMILY_KEY = urlKey.trim();
+    localStorage.setItem("fridge_family_key", FAMILY_KEY);
+  } else {
+    FAMILY_KEY = localStorage.getItem("fridge_family_key") || "";
+  }
+})();
 
 function showToast(msg) {
-  var t = document.getElementById('toast');
-  t.innerText = msg || '✓ 已保存并同步到冰箱看板';
-  t.style.display = 'block';
-  setTimeout(function() { t.style.display = 'none'; }, 2400);
+  const t = document.getElementById("toast");
+  t.innerText = msg;
+  t.style.display = "block";
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => { t.style.display = "none"; }, 2500);
 }
 
-function quickAddShop(name) {
-  STATE.shoppingList.unshift({ id: 's' + Date.now(), name: name, done: false });
+function esc(s) {
+  return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function setAuthor(name) {
+  AUTHOR = name;
+  localStorage.setItem("fridge_author", name);
+  ["sige", "wife", "parents"].forEach(k => document.getElementById("who-" + k).classList.remove("active"));
+  if (name === "四哥") document.getElementById("who-sige").classList.add("active");
+  else if (name === "爸妈") document.getElementById("who-parents").classList.add("active");
+  else document.getElementById("who-wife").classList.add("active");
+}
+setAuthor(AUTHOR);
+
+function saveKeyManual() {
+  const v = document.getElementById("keyInput").value.trim();
+  if (!v) return;
+  FAMILY_KEY = v;
+  localStorage.setItem("fridge_family_key", v);
+  document.getElementById("authBanner").style.display = "none";
+  showToast("✓ 家庭密钥已保存");
+}
+
+async function apiFetch(path, options) {
+  const opts = Object.assign({ method: "GET", headers: {} }, options || {});
+  if (FAMILY_KEY) opts.headers["X-Fridge-Key"] = FAMILY_KEY;
+  if (opts.body && !opts.headers["Content-Type"]) opts.headers["Content-Type"] = "application/json";
+
+  const order = [ACTIVE_API].concat(API_ENDPOINTS.filter(u => u !== ACTIVE_API));
+  let lastErr = null;
+  for (const base of order) {
+    try {
+      const resp = await fetch(base + path, opts);
+      if (resp.status === 401) {
+        document.getElementById("authBanner").style.display = "block";
+        showToast("需要家庭专属密钥才能修改，请从家庭群置顶链接打开");
+        return null;
+      }
+      if (resp.ok) {
+        ACTIVE_API = base;
+        return await resp.json();
+      }
+      lastErr = "HTTP " + resp.status;
+    } catch (e) {
+      lastErr = String(e);
+    }
+  }
+  showToast("网络暂时不稳，请重试 (" + lastErr + ")");
+  return null;
+}
+
+async function loadLive() {
+  const badge = document.getElementById("syncBadge");
+  badge.innerText = "同步中…";
+  const data = await apiFetch("/api/data?t=" + Date.now());
+  if (!data || !data.state) {
+    badge.innerText = "离线";
+    return;
+  }
+  STATE = data.state;
+  NUT = data.nutrition || NUT;
+  WEEKLY_GAPS = data.weeklyGaps || WEEKLY_GAPS;
+  if (data.authEnabled && !FAMILY_KEY) {
+    document.getElementById("authBanner").style.display = "block";
+  }
+  badge.innerText = "已连云端";
   renderAll();
 }
 
-function addShopItem() {
-  var el = document.getElementById('shopNameInput');
-  var name = el.value.trim();
+async function runPatch(actions, toastMsg) {
+  const res = await apiFetch("/api/patch", {
+    method: "POST",
+    body: JSON.stringify({ author: AUTHOR, actions: Array.isArray(actions) ? actions : [actions] })
+  });
+  if (res && res.ok) {
+    STATE = res.state;
+    NUT = res.nutrition || NUT;
+    WEEKLY_GAPS = res.weeklyGaps || WEEKLY_GAPS;
+    renderAll();
+    showToast(toastMsg || (res.notes && res.notes[0]) || "✓ 已同步到 Kindle");
+  }
+}
+
+async function saveFullState() {
+  const res = await apiFetch("/api/save", { method: "POST", body: JSON.stringify(STATE) });
+  if (res && res.ok) {
+    STATE = res.state;
+    NUT = res.nutrition || NUT;
+    WEEKLY_GAPS = res.weeklyGaps || WEEKLY_GAPS;
+    renderAll();
+    showToast("✓ 已保存并同步到冰箱看板");
+  }
+}
+
+function switchPane(p) {
+  CUR_PANE = p;
+  ["chat", "inv", "nut", "plan"].forEach(k => {
+    document.getElementById("pane-" + k).classList.toggle("active", k === p);
+    document.getElementById("nav-" + k).classList.toggle("active", k === p);
+  });
+}
+
+// ==================== AI 对话 ====================
+function appendChatBubble(role, text, applied) {
+  const feed = document.getElementById("chatFeed");
+  const div = document.createElement("div");
+  div.className = role === "user" ? "bubble-user" : "bubble-ai";
+  if (role === "user") {
+    div.textContent = text;
+  } else {
+    let html = '<span class="bubble-tag">' + (applied && applied.length ? "已同步账本" : "冰箱 AI 管家") + "</span><br>" + esc(text);
+    if (applied && applied.length > 0) {
+      html += '<br><span class="bubble-sync">✓ ' + esc(applied.join(" · ")) + "</span>";
+    }
+    div.innerHTML = html;
+  }
+  feed.appendChild(div);
+  feed.scrollTop = feed.scrollHeight;
+}
+
+function quickAsk(txt) {
+  document.getElementById("chatInput").value = txt;
+  sendChat();
+}
+
+async function sendChat() {
+  const input = document.getElementById("chatInput");
+  const btn = document.getElementById("chatSendBtn");
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = "";
+  appendChatBubble("user", msg);
+  btn.disabled = true;
+  btn.innerText = "思考中…";
+  const res = await apiFetch("/api/chat", {
+    method: "POST",
+    body: JSON.stringify({ message: msg, author: AUTHOR })
+  });
+  btn.disabled = false;
+  btn.innerText = "发送";
+  if (res && res.ok) {
+    if (res.state) STATE = res.state;
+    if (res.nutrition) NUT = res.nutrition;
+    if (res.weeklyGaps) WEEKLY_GAPS = res.weeklyGaps;
+    appendChatBubble("ai", res.reply, res.applied || []);
+    renderAll();
+  }
+}
+
+// ==================== 库存与待买操作 ====================
+function setInvFilter(f) {
+  INV_FILTER = f;
+  renderInventory();
+}
+
+async function addInventoryItem() {
+  const name = document.getElementById("invName").value.trim();
   if (!name) return;
-  STATE.shoppingList.unshift({ id: 's' + Date.now(), name: name, done: false });
-  el.value = '';
-  renderAll();
+  const qty = document.getElementById("invQty").value.trim();
+  const zone = document.getElementById("invZone").value;
+  const days = parseInt(document.getElementById("invDays").value, 10) || 7;
+  const staple = document.getElementById("invStaple").checked;
+  document.getElementById("invName").value = "";
+  document.getElementById("invQty").value = "";
+  await runPatch({ op: "add_inventory", items: [{ name, qty, zone, daysLeft: days, staple }] });
 }
 
-function toggleShopAdmin(idx) {
-  STATE.shoppingList[idx].done = !STATE.shoppingList[idx].done;
-  renderAll();
+async function adjustInvDays(id, delta) {
+  await runPatch({ op: "update_inventory", id, daysDelta: delta });
 }
 
-function removeShopAdmin(idx) {
-  STATE.shoppingList.splice(idx, 1);
-  renderAll();
+async function toggleStaple(id, cur) {
+  await runPatch({ op: "update_inventory", id, staple: !cur }, !cur ? "已标为★常备品（用完自动提醒补货）" : "已取消常备标记");
 }
 
-function clearDoneShop() {
-  STATE.shoppingList = STATE.shoppingList.filter(function(s) { return !s.done; });
-  renderAll();
+async function consumeInv(id) {
+  await runPatch({ op: "consume_inventory", id, autoRestock: true });
+}
+
+async function quickAddShop(name) { await runPatch({ op: "add_shop", items: [name] }); }
+async function addShopItem() {
+  const el = document.getElementById("shopNameInput");
+  if (!el.value.trim()) return;
+  const v = el.value.trim();
+  el.value = "";
+  await runPatch({ op: "add_shop", items: [v] });
+}
+async function toggleShop(id) { await runPatch({ op: "toggle_shop", id }); }
+async function clearDoneShop() { await runPatch({ op: "clear_done_shop" }); }
+async function shopToInventory() {
+  const res = await apiFetch("/api/shop-to-inventory", { method: "POST", body: JSON.stringify({ author: AUTHOR }) });
+  if (res && res.ok) {
+    STATE = res.state;
+    renderAll();
+    showToast((res.notes && res.notes[0]) || "请先勾选已购项再一键入库");
+  }
+}
+
+// ==================== 营养与在家人数 ====================
+function setNutView(v) {
+  NUT_VIEW = v;
+  renderNutrition();
+}
+
+async function toggleMemberHome(id) {
+  const ids = STATE.family.members.filter(m => m.id === id ? !m.homeToday : m.homeToday).map(m => m.id);
+  await runPatch({ op: "set_members_home", ids });
+}
+
+async function addMealLog() {
+  const title = document.getElementById("mealTitle").value.trim();
+  if (!title) return;
+  const slot = document.getElementById("mealSlot").value;
+  const scope = document.getElementById("mealScope").value;
+  document.getElementById("mealTitle").value = "";
+  await runPatch({ op: "log_meal", slot, scope, title, source: "web" });
+}
+
+async function deleteMeal(id) {
+  await runPatch({ op: "delete_meal", id });
+}
+
+function updateMemberTarget(idx, field, val) {
+  const n = parseInt(val, 10);
+  if (!isNaN(n) && n > 0) STATE.family.members[idx].target[field] = n;
+}
+
+// ==================== 留言条、周备餐与设置 ====================
+async function saveFridgeNote() {
+  const text = document.getElementById("noteInput").value.trim();
+  await runPatch({ op: "set_note", text, author: AUTHOR });
+}
+async function clearFridgeNote() {
+  document.getElementById("noteInput").value = "";
+  await runPatch({ op: "set_note", text: "", author: AUTHOR });
+}
+
+async function addWeeklyDay() {
+  const day = document.getElementById("wkDay").value;
+  const dish = document.getElementById("wkDish").value.trim();
+  const ings = document.getElementById("wkIngs").value.split(/[,，、\s]+/).map(x => x.trim()).filter(Boolean);
+  if (!dish) return;
+  const days = (STATE.weeklyMealPlan && STATE.weeklyMealPlan.days ? STATE.weeklyMealPlan.days.slice() : []);
+  days.push({ day, dish, ingredients: ings, note: "" });
+  document.getElementById("wkDish").value = "";
+  document.getElementById("wkIngs").value = "";
+  await runPatch({ op: "set_weekly_plan", days });
+}
+
+async function removeWeeklyDay(idx) {
+  const days = STATE.weeklyMealPlan.days.slice();
+  days.splice(idx, 1);
+  await runPatch({ op: "set_weekly_plan", days });
+}
+
+async function syncWeeklyGaps() {
+  await runPatch({ op: "sync_weekly_gaps_to_shop" });
+}
+
+async function triggerAiRecipes() {
+  showToast("🤖 AI 正在结合临期食材与蛋白缺口推荐…");
+  const res = await apiFetch("/api/ai-recipes", { method: "POST", body: JSON.stringify({}) });
+  if (res && res.ok) {
+    STATE = res.state;
+    renderAll();
+    showToast("✓ 已更新 AI 推荐菜谱池");
+  }
 }
 
 function updateCustomDish(idx, field, val) {
   if (!STATE.customDishes[idx]) STATE.customDishes[idx] = { name: "", steps: "" };
   STATE.customDishes[idx][field] = val;
 }
-
-function clearCustomDishes() {
-  STATE.customDishes = [{ name: "", steps: "" }, { name: "", steps: "" }, { name: "", steps: "" }];
-  renderAll();
-}
-
-async function triggerAiRecipes() {
-  var btn = document.getElementById('aiGenBtn');
-  var oldText = btn.innerText;
-  btn.innerText = '🤖 正在根据冰箱食材 AI 生成菜谱与做法...';
-  btn.disabled = true;
-  try {
-    var apiUrl = 'https://1330653375-kee5znqxpt.ap-hongkong.tencentscf.com/api/ai-recipes';
-    var resp = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ inventory: STATE.inventory, customDishes: STATE.customDishes })
-    });
-    if (resp.ok) {
-      var data = await resp.json();
-      if (Array.isArray(data.recipes) && data.recipes.length > 0) {
-        STATE.recipes = data.recipes;
-      }
-      if (Array.isArray(data.customDishes)) {
-        STATE.customDishes = data.customDishes;
-      }
-      renderAll();
-      showToast('✨ AI 已根据冰箱现有食材生成最新菜谱与做法！');
-    }
-  } catch (e) {
-    showToast('已使用本地智能中餐引擎匹配菜谱');
-  }
-  btn.innerText = oldText;
-  btn.disabled = false;
-}
-
-function quickAdd(name, loc, days) {
-  STATE.inventory.unshift({
-    id: 'i' + Date.now(),
-    name: name,
-    location: loc,
-    keywords: [name.replace(/^鲜/, '')],
-    daysLeft: days
-  });
-  renderAll();
-}
-
-function addInventory() {
-  var name = document.getElementById('invName').value.trim();
-  var loc = document.getElementById('invLoc').value.trim() || '冷藏室';
-  var days = parseInt(document.getElementById('invDays').value, 10);
-  if (!name) return;
-  if (isNaN(days)) days = 7;
-  STATE.inventory.unshift({
-    id: 'i' + Date.now(),
-    name: name,
-    location: loc,
-    keywords: name.split(/[\s/、,，]+/).filter(Boolean),
-    daysLeft: days
-  });
-  document.getElementById('invName').value = '';
-  renderAll();
-}
-
-function removeInventory(idx) {
-  STATE.inventory.splice(idx, 1);
-  renderAll();
-}
-
-function adjustDays(idx, delta) {
-  STATE.inventory[idx].daysLeft += delta;
-  renderAll();
-}
-
-function removeRecipe(idx) {
-  STATE.recipes.splice(idx, 1);
-  renderAll();
-}
-
-function addEvent() {
-  var icon = document.getElementById('evIcon').value.trim() || '📌';
-  var title = document.getElementById('evTitle').value.trim();
-  var calendar = document.getElementById('evCalendar').value || 'solar';
-  var month = parseInt(document.getElementById('evMonth').value, 10);
-  var day = parseInt(document.getElementById('evDay').value, 10);
-  if (!title || isNaN(month) || isNaN(day)) return;
-  STATE.events.push({ id: 'ev' + Date.now(), icon: icon, title: title, calendar: calendar, month: month, day: day });
-  document.getElementById('evTitle').value = '';
-  renderAll();
-}
-
-function toggleEventCalendar(idx) {
-  var cur = STATE.events[idx].calendar === 'lunar' ? 'solar' : 'lunar';
-  STATE.events[idx].calendar = cur;
-  renderAll();
-}
-
-function removeEvent(idx) {
-  STATE.events.splice(idx, 1);
-  renderAll();
-}
-
 function changeCity(val) {
-  var parts = val.split('|');
-  STATE.city = { name: parts[0], lat: parseFloat(parts[1]), lon: parseFloat(parts[2]) };
+  const p = val.split("|");
+  STATE.city = { name: p[0], lat: parseFloat(p[1]), lon: parseFloat(p[2]) };
   STATE.cityUserChanged = true;
 }
-
-async function searchCustomCity() {
-  var name = document.getElementById('customCityInput').value.trim();
-  if (!name) return;
-  try {
-    var r = await fetch('https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(name) + '&count=1&language=zh&format=json');
-    var j = await r.json();
-    if (j.results && j.results.length > 0) {
-      var c = j.results[0];
-      STATE.city = { name: name, lat: c.latitude, lon: c.longitude };
-      STATE.cityUserChanged = true;
-      showToast('✓ 已切换城市为：' + name);
-      renderAll();
-    } else {
-      showToast('未找到该城市坐标，请尝试输入标准市名');
-    }
-  } catch (e) {}
-}
-
-function renderAll() {
-  var shopHtml = (STATE.shoppingList || []).map(function(s, idx) {
-    var txtStyle = s.done ? 'text-decoration:line-through;color:#888;' : '';
-    var btnLabel = s.done ? '☑ 已购' : '□ 待买';
-    var btnCls = s.done ? 'btn btn-sm' : 'btn btn-outline btn-sm';
-    return '<div class="item-row">' +
-      '<div class="item-title" style="' + txtStyle + '">' + s.name + '</div>' +
-      '<div class="item-actions">' +
-        '<button class="' + btnCls + '" onclick="toggleShopAdmin(' + idx + ')">' + btnLabel + '</button>' +
-        '<button class="btn btn-outline btn-sm" style="color:#b91c1c;border-color:#e5b4b4;" onclick="removeShopAdmin(' + idx + ')">删除</button>' +
-      '</div>' +
-    '</div>';
-  }).join('');
-  document.getElementById('shopAdminList').innerHTML = shopHtml;
-
-  // 渲染城市选中态
-  var sel = document.getElementById('citySelect');
-  var matchedOpt = false;
-  for (var i = 0; i < sel.options.length; i++) {
-    if (sel.options[i].value.indexOf((STATE.city && STATE.city.name) || '郑州') === 0) {
-      sel.selectedIndex = i;
-      matchedOpt = true;
-      break;
-    }
-  }
-  if (!matchedOpt && STATE.city && STATE.city.name) {
-    document.getElementById('customCityInput').value = STATE.city.name;
-  }
-
-  // 渲染 3 个自选菜品槽位
-  var slotsHtml = [0, 1, 2].map(function(idx) {
-    var item = (STATE.customDishes && STATE.customDishes[idx]) || { name: "", steps: "" };
-    var statusTag = item.name ? '<span style="color:#15803d;">✓ 已指定自选菜</span>' : '<span style="color:#666;">留空 ➔ 自动由 AI 按冰箱食材生成</span>';
-    return '<div class="slot-box">' +
-      '<div class="slot-lbl"><span>今日菜位 #' + (idx + 1) + '</span>' + statusTag + '</div>' +
-      '<div class="form-row" style="margin-bottom:6px;">' +
-        '<input value="' + (item.name || '').replace(/"/g, '&quot;') + '" oninput="updateCustomDish(' + idx + ', \'name\', this.value)" placeholder="输入想吃的菜名 (留空则自动推荐)" style="flex:1;">' +
-      '</div>' +
-      '<div class="form-row" style="margin-bottom:0;">' +
-        '<input value="' + (item.steps || '').replace(/"/g, '&quot;') + '" oninput="updateCustomDish(' + idx + ', \'steps\', this.value)" placeholder="做法步骤 (可留空，保存时自动生成 3 步做法)" style="flex:1;font-size:12.5px;">' +
-      '</div>' +
-    '</div>';
-  }).join('');
-  document.getElementById('customDishSlots').innerHTML = slotsHtml;
-
-  var invHtml = STATE.inventory.map(function(item, idx) {
-    var badge = item.daysLeft <= 3 ? 'background:#141413;color:#fff;' : 'background:#fff;color:#141413;border:1.5px solid #141413;';
-    var label = item.daysLeft <= 0 ? '今日用完' : (item.daysLeft >= 55 ? '剩 ' + Math.round(item.daysLeft/30) + ' 个月' : '剩 ' + item.daysLeft + ' 天');
-    return '<div class="item-row">' +
-      '<div class="item-main">' +
-        '<div class="item-title">' + item.name + ' <span style="font-weight:500;font-size:13px;color:#555;">(' + item.location + ')</span></div>' +
-      '</div>' +
-      '<div class="item-actions">' +
-        '<button class="btn btn-outline btn-sm" onclick="adjustDays(' + idx + ', -1)">-1天</button>' +
-        '<span style="font-size:12px;font-weight:800;padding:3px 9px;border-radius:12px;' + badge + '">' + label + '</span>' +
-        '<button class="btn btn-outline btn-sm" onclick="adjustDays(' + idx + ', 7)">+7天</button>' +
-        '<button class="btn btn-outline btn-sm" style="color:#b91c1c;border-color:#e5b4b4;" onclick="removeInventory(' + idx + ')">用完</button>' +
-      '</div>' +
-    '</div>';
-  }).join('');
-  document.getElementById('invList').innerHTML = invHtml;
-
-  var recHtml = (STATE.recipes || []).map(function(r, idx) {
-    return '<div class="item-row">' +
-      '<div class="item-main">' +
-        '<div class="item-title">' + r.name + ' <span style="font-size:12px;font-weight:600;color:#555;">(食材: ' + (r.ingredients || []).join('/') + ')</span></div>' +
-        '<div class="item-sub">' + r.steps + '</div>' +
-      '</div>' +
-      '<button class="btn btn-outline btn-sm" onclick="removeRecipe(' + idx + ')">删除</button>' +
-    '</div>';
-  }).join('');
-  document.getElementById('recList').innerHTML = recHtml;
-
-  var cnMonths = ["","正月","二月","三月","四月","五月","六月","七月","八月","九月","十月","冬月","腊月"];
-  var cnDays = ["","初一","初二","初三","初四","初五","初六","初七","初八","初九","初十","十一","十二","十三","十四","十五","十六","十七","十八","十九","二十","廿一","廿二","廿三","廿四","廿五","廿六","廿七","廿八","廿九","三十"];
-  var evHtml = STATE.events.map(function(ev, idx) {
-    var isLunar = ev.calendar === 'lunar';
-    var calTag = isLunar ? '阴历' : '阳历';
-    var dateStr = isLunar ? ((cnMonths[ev.month] || (ev.month + '月')) + (cnDays[ev.day] || (ev.day + '日'))) : (ev.month + '月' + ev.day + '日');
-    var tagStyle = isLunar ? 'background:#141413;color:#fff;' : 'background:#efede8;color:#141413;border:1px solid #bbb9b2;';
-    return '<div class="item-row">' +
-      '<div class="item-title">' + ev.icon + ' ' + ev.title +
-        ' <span onclick="toggleEventCalendar(' + idx + ')" style="cursor:pointer;font-size:11.5px;padding:2px 7px;border-radius:10px;margin:0 4px;' + tagStyle + '" title="点击切换阴历/阳历">' + calTag + ' ⇄</span>' +
-        '<span style="font-size:13px;color:#555;">(每年 ' + dateStr + ')</span>' +
-      '</div>' +
-      '<button class="btn btn-outline btn-sm" onclick="removeEvent(' + idx + ')">删除</button>' +
-    '</div>';
-  }).join('');
-  document.getElementById('evList').innerHTML = evHtml;
-}
-
-async function saveAll() {
-  STATE.expiryDisplayIds = STATE.inventory
-    .filter(function(i) { return i.daysLeft <= 90; })
-    .map(function(i) { return i.id; });
-
-  var resp = await fetch('https://1330653375-kee5znqxpt.ap-hongkong.tencentscf.com/api/save', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(STATE)
+function addEvent() {
+  const title = document.getElementById("evTitle").value.trim();
+  const month = parseInt(document.getElementById("evMonth").value, 10);
+  const day = parseInt(document.getElementById("evDay").value, 10);
+  if (!title || isNaN(month) || isNaN(day)) return;
+  STATE.events.push({
+    id: "ev" + Date.now(),
+    icon: document.getElementById("evIcon").value.trim() || "🎂",
+    title,
+    calendar: document.getElementById("evCalendar").value,
+    month,
+    day
   });
-  if (resp.ok) {
-    var resJson = await resp.json();
-    if (resJson && resJson.state) {
-      STATE = resJson.state;
-      renderAll();
-    }
-    showToast('✓ 已保存并同步到冰箱看板');
+  document.getElementById("evTitle").value = "";
+  renderPlanAndSettings();
+}
+function removeEvent(idx) { STATE.events.splice(idx, 1); renderPlanAndSettings(); }
+
+function copyShareLink() {
+  const base = "https://hohoweiyao-cmyk.github.io/fridge/admin";
+  const link = FAMILY_KEY ? (base + "?key=" + encodeURIComponent(FAMILY_KEY)) : base;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(link).then(() => showToast("✓ 已复制免密链接，直接发家庭群置顶"));
+  } else {
+    prompt("复制此链接发到家庭群置顶：", link);
   }
 }
 
+// ==================== 渲染汇总 ====================
+function renderAll() {
+  if (!STATE) return;
+  renderChatSummary();
+  renderInventory();
+  renderNutrition();
+  renderPlanAndSettings();
+}
 
-renderAll();
-(async function syncLiveState() {
-  try {
-    var r = await fetch("https://1330653375-kee5znqxpt.ap-hongkong.tencentscf.com/api/data?t=" + Date.now());
-    if (r.ok) {
-      var j = await r.json();
-      if (j && j.state) {
-        STATE = j.state;
-        if (!Array.isArray(STATE.customDishes)) STATE.customDishes = [{name:"",steps:""},{name:"",steps:""},{name:"",steps:""}];
-        if (!Array.isArray(STATE.shoppingList) || STATE.shoppingList.length === 0) {
-          STATE.shoppingList = [
-            { id: "s1", name: "鸡蛋 1盒", done: false },
-            { id: "s2", name: "小葱 / 生姜", done: false },
-            { id: "s3", name: "厨房抽纸", done: false },
-            { id: "s4", name: "无糖酸奶 ×2", done: false },
-            { id: "s5", name: "鲜虾仁 1袋", done: false },
-            { id: "s6", name: "生抽 / 料酒", done: false }
-          ];
-        }
-        renderAll();
-      }
-    }
-  } catch (e) {}
-})();
+function renderChatSummary() {
+  const inv = (STATE.inventory || []).slice().sort((a, b) => a.daysLeft - b.daysLeft);
+  const urgent = inv.filter(i => i.daysLeft <= 3);
+  const fam = NUT.family;
+  document.getElementById("chatSummaryMeta").innerText = "库存 " + inv.length + " 样 · 临期 " + urgent.length + " 样";
+  let lines = [];
+  if (urgent.length > 0) {
+    lines.push("🔥 <b>优先消耗</b>：" + urgent.slice(0, 4).map(i => esc(i.name) + "(" + (i.daysLeft <= 0 ? "今日" : i.daysLeft + "天") + ")").join("、"));
+  }
+  if (fam) {
+    lines.push("🥗 <b>" + esc(fam.label) + "</b>：蛋白 " + fam.current.protein + "/" + fam.target.protein + "g · 碳水 " + fam.current.carb + "/" + fam.target.carb + "g");
+  }
+  if (STATE.fridgeNote && STATE.fridgeNote.text) {
+    lines.push("💬 <b>冰箱留言</b>：" + esc(STATE.fridgeNote.text));
+  }
+  document.getElementById("chatSummaryBody").innerHTML = lines.join("<br>") || "冰箱一切正常，随时问我！";
+}
 
+function renderInventory() {
+  const inv = (STATE.inventory || []).slice().sort((a, b) => a.daysLeft - b.daysLeft);
+  document.getElementById("invTotalCount").innerText = "(" + inv.length + ")";
+
+  // 渲染待买
+  const shop = STATE.shoppingList || [];
+  document.getElementById("shopListEl").innerHTML = shop.length === 0
+    ? '<div class="item-sub" style="padding:6px 0;">暂无待买项</div>'
+    : shop.map(s =>
+        '<div class="item-row">' +
+          '<div class="item-main"><div class="item-title" style="' + (s.done ? "text-decoration:line-through;opacity:0.55;" : "") + '">' +
+            (s.staple ? "★ " : "") + esc(s.name) +
+          '</div></div>' +
+          '<div class="item-actions">' +
+            '<button class="btn sm ' + (s.done ? "accent" : "outline") + '" onclick="toggleShop(\'' + esc(s.id) + '\')">' + (s.done ? "☑ 已购" : "□ 待买") + "</button>" +
+          '</div>' +
+        '</div>'
+      ).join("");
+
+  // 渲染筛选胶囊高亮
+  const filterKeys = ["all", "cold", "frozen", "urgent", "staple"];
+  const chips = document.querySelectorAll("#invFilterBar .chip");
+  chips.forEach((c, idx) => c.classList.toggle("active", filterKeys[idx] === INV_FILTER));
+
+  const filtered = inv.filter(it => {
+    if (INV_FILTER === "cold") return it.zone === "cold" || it.zone === "pantry";
+    if (INV_FILTER === "frozen") return it.zone === "frozen";
+    if (INV_FILTER === "urgent") return it.daysLeft <= 3;
+    if (INV_FILTER === "staple") return Boolean(it.staple);
+    return true;
+  });
+
+  document.getElementById("invListEl").innerHTML = filtered.length === 0
+    ? '<div class="item-sub" style="padding:8px 0;">该分类暂无食材</div>'
+    : filtered.map(it => {
+        const urgent = it.daysLeft <= 3;
+        const lbl = it.daysLeft < 0 ? ("过期" + Math.abs(it.daysLeft) + "天") : (it.daysLeft === 0 ? "今日用完" : (it.daysLeft >= 55 ? "剩" + Math.round(it.daysLeft / 30) + "个月" : "剩" + it.daysLeft + "天"));
+        return '<div class="item-row">' +
+          '<div class="item-main">' +
+            '<div class="item-title">' + (it.staple ? "★ " : "") + esc(it.name) +
+              (it.qty ? ' <span style="font-weight:600;font-size:12px;color:var(--muted);">' + esc(it.qty) + '</span>' : '') +
+            '</div>' +
+            '<div class="item-sub">' + esc(it.location) + " · 到期 " + esc(it.expiresAt) + '</div>' +
+          '</div>' +
+          '<div class="item-actions">' +
+            '<button class="btn outline sm" onclick="toggleStaple(\'' + esc(it.id) + '\',' + Boolean(it.staple) + ')" title="切换常备">★</button>' +
+            '<button class="btn outline sm" onclick="adjustInvDays(\'' + esc(it.id) + '\',-1)">-1</button>' +
+            '<span class="days-pill' + (urgent ? " urgent" : "") + '">' + lbl + '</span>' +
+            '<button class="btn outline sm" onclick="adjustInvDays(\'' + esc(it.id) + '\',7)">+7</button>' +
+            '<button class="btn sm" onclick="consumeInv(\'' + esc(it.id) + '\')">用完</button>' +
+          '</div>' +
+        '</div>';
+      }).join("");
+}
+
+function renderNutrition() {
+  const members = (STATE.family && STATE.family.members) || [];
+  document.getElementById("memberHomeChips").innerHTML = members.map(m =>
+    '<span class="chip' + (m.homeToday ? " orange" : "") + '" onclick="toggleMemberHome(\'' + esc(m.id) + '\')">' +
+      (m.homeToday ? "✓ " : "+ ") + esc(m.name) + " (" + esc(m.role) + ")" +
+    '</span>'
+  ).join("");
+
+  document.getElementById("btnNutFamily").className = "btn" + (NUT_VIEW === "family" ? " accent" : " outline");
+  document.getElementById("btnNutPersonal").className = "btn" + (NUT_VIEW === "personal" ? " accent" : " outline");
+
+  const n = NUT_VIEW === "personal" ? NUT.personal : NUT.family;
+  if (n) {
+    document.getElementById("nutHeadline").innerText = "📊 " + n.label;
+    document.getElementById("nutKcalText").innerText = n.current.kcal + " / " + n.target.kcal + " kcal (" + n.pct.kcal + "%)";
+    const rows = [
+      { name: "蛋白质", cur: n.current.protein, tgt: n.target.protein, gap: n.gaps.protein, pct: n.pct.protein, orange: n.pct.protein < 80 },
+      { name: "碳水化合物", cur: n.current.carb, tgt: n.target.carb, gap: n.gaps.carb, pct: n.pct.carb, orange: false },
+      { name: "脂肪", cur: n.current.fat, tgt: n.target.fat, gap: n.gaps.fat, pct: n.pct.fat, orange: false }
+    ];
+    document.getElementById("nutBarsEl").innerHTML = rows.map(r =>
+      '<div style="margin-bottom:10px;">' +
+        '<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:800;">' +
+          '<span>' + r.name + (r.gap > 0 ? ' <span style="color:var(--accent);">(差 ' + r.gap + 'g)</span>' : ' <span style="color:var(--ok);">(达标)</span>') + '</span>' +
+          '<span>' + r.cur + " / " + r.tgt + "g (" + r.pct + "%)</span>" +
+        '</div>' +
+        '<div class="seg-track"><div class="seg-fill' + (r.orange ? " orange" : "") + '" style="width:' + r.pct + '%"></div></div>' +
+      '</div>'
+    ).join("");
+    document.getElementById("nutAdviceEl").innerText = n.advice;
+
+    const slotLbl = { breakfast: "早", lunch: "午", dinner: "晚", snack: "加" };
+    document.getElementById("mealLogListEl").innerHTML = (n.meals || []).length === 0
+      ? '<div class="item-sub">今天还没有记录，上面随手填一句或微信告诉 Hermes。</div>'
+      : n.meals.map(ml =>
+          '<div class="item-row">' +
+            '<div class="item-main">' +
+              '<div class="item-title">[' + (slotLbl[ml.slot] || "餐") + "] " + esc(ml.title) + (ml.source === "plan" ? ' <span class="days-pill">计划估算</span>' : "") + '</div>' +
+              '<div class="item-sub">蛋白 ' + ml.protein + "g · 碳水 " + ml.carb + "g · 脂肪 " + ml.fat + "g · " + ml.kcal + " kcal</div>" +
+            '</div>' +
+            (ml.source !== "plan" ? '<button class="btn outline sm" onclick="deleteMeal(\'' + esc(ml.id) + '\')">删</button>' : '') +
+          '</div>'
+        ).join("");
+  }
+
+  document.getElementById("memberTargetsEl").innerHTML = members.map((m, idx) =>
+    '<div class="item-row" style="flex-direction:column;align-items:stretch;gap:6px;">' +
+      '<div class="item-title">' + esc(m.name) + ' <span class="item-sub">(' + esc(m.role) + ')</span></div>' +
+      '<div class="form-row" style="margin-bottom:0;">' +
+        '<label style="font-size:11.5px;font-weight:800;">蛋白<input type="number" value="' + m.target.protein + '" onchange="updateMemberTarget(' + idx + ',\'protein\',this.value)" style="width:62px;padding:4px 6px;margin-left:3px;"></label>' +
+        '<label style="font-size:11.5px;font-weight:800;">碳水<input type="number" value="' + m.target.carb + '" onchange="updateMemberTarget(' + idx + ',\'carb\',this.value)" style="width:62px;padding:4px 6px;margin-left:3px;"></label>' +
+        '<label style="font-size:11.5px;font-weight:800;">脂肪<input type="number" value="' + m.target.fat + '" onchange="updateMemberTarget(' + idx + ',\'fat\',this.value)" style="width:56px;padding:4px 6px;margin-left:3px;"></label>' +
+        '<label style="font-size:11.5px;font-weight:800;">热量<input type="number" value="' + m.target.kcal + '" onchange="updateMemberTarget(' + idx + ',\'kcal\',this.value)" style="width:68px;padding:4px 6px;margin-left:3px;"></label>' +
+      '</div>' +
+    '</div>'
+  ).join("");
+}
+
+function renderPlanAndSettings() {
+  document.getElementById("noteInput").value = (STATE.fridgeNote && STATE.fridgeNote.text) || "";
+
+  const wkDays = (WEEKLY_GAPS && WEEKLY_GAPS.days) || [];
+  document.getElementById("weeklyPlanEl").innerHTML = wkDays.length === 0
+    ? '<div class="item-sub">暂无一周备餐，可在此添加或直接微信让 Hermes 帮你规划下周晚饭。</div>'
+    : wkDays.map((d, idx) =>
+        '<div class="item-row">' +
+          '<div class="item-main">' +
+            '<div class="item-title">' + esc(d.day) + " · " + esc(d.dish) + '</div>' +
+            '<div class="item-sub">' + (d.missing.length ? '<span style="color:var(--accent);font-weight:800;">缺：' + esc(d.missing.join("、")) + '</span>' : '<span style="color:var(--ok);font-weight:800;">✓ 冰箱食材已齐</span>') + '</div>' +
+          '</div>' +
+          '<button class="btn outline sm" onclick="removeWeeklyDay(' + idx + ')">删</button>' +
+        '</div>'
+      ).join("");
+
+  document.getElementById("customDishesEl").innerHTML = [0, 1, 2].map(idx => {
+    const c = (STATE.customDishes && STATE.customDishes[idx]) || { name: "", steps: "" };
+    return '<div class="form-row"><input value="' + esc(c.name) + '" oninput="updateCustomDish(' + idx + ',\'name\',this.value)" placeholder="今日三餐/菜品 #' + (idx + 1) + '（如 早餐：鸡蛋、红薯）" style="flex:1;"></div>';
+  }).join("");
+
+  const sel = document.getElementById("citySelect");
+  for (let i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].value.indexOf((STATE.city && STATE.city.name) || "郑州") === 0) { sel.selectedIndex = i; break; }
+  }
+
+  document.getElementById("evListEl").innerHTML = (STATE.events || []).map((ev, idx) =>
+    '<div class="item-row">' +
+      '<div class="item-title">' + esc(ev.icon) + " " + esc(ev.title) + ' <span class="days-pill">' + (ev.calendar === "lunar" ? "阴历" : "阳历") + " " + ev.month + "/" + ev.day + '</span></div>' +
+      '<button class="btn outline sm" onclick="removeEvent(' + idx + ')">删</button>' +
+    '</div>'
+  ).join("");
+}
+
+loadLive();
 </script>
 </body>
 </html>
