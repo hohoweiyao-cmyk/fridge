@@ -687,7 +687,7 @@ async function apiFetch(path, options) {
         showToast("需要家庭专属密钥才能修改，请从家庭群置顶链接打开");
         return null;
       }
-      if (resp.ok) {
+      if (resp.ok && (resp.headers.get("content-type") || "").includes("application/json")) {
         ACTIVE_API = base;
         return await resp.json();
       }
