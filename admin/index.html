@@ -185,7 +185,32 @@
   .item-main { flex: 1; min-width: 0; }
   .item-title { font-size: 14.5px; font-weight: 800; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
   .item-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
-  .item-actions { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+  .item-remark {
+    font-size: 12px;
+    color: var(--ink);
+    background: #f5f5f2;
+    border-left: 2.5px solid var(--soft-border);
+    padding: 3px 8px;
+    border-radius: 6px;
+    margin-top: 5px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .item-actions { display: flex; align-items: center; gap: 5px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+  .edit-box {
+    margin: 6px 0 8px;
+    padding: 11px;
+    background: #f8f8f5;
+    border: 1.6px solid var(--ink);
+    border-radius: 14px;
+  }
+  .edit-box-title {
+    font-size: 12.5px;
+    font-weight: 800;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
 
   .days-pill {
     font-size: 11.5px;
@@ -199,6 +224,11 @@
     background: var(--accent);
     border-color: var(--accent);
     color: #fff;
+  }
+  .days-pill.neutral {
+    background: #f1f1ed;
+    border-color: var(--soft-border);
+    color: var(--muted);
   }
 
   /* C 方案分段刻度进度条 */
@@ -444,12 +474,20 @@
         <input id="invQty" placeholder="数量（如 500g）" style="flex:1;min-width:75px;">
       </div>
       <div class="form-row">
-        <select id="invZone" style="flex:1;">
+        <select id="invZone" style="flex:1;min-width:86px;">
           <option value="cold">❄ 冷藏</option>
           <option value="frozen">🧊 冷冻</option>
           <option value="pantry">📦 常温</option>
         </select>
-        <input id="invDays" type="number" value="7" placeholder="几天" style="width:76px;">
+        <select id="invExpiryStatus" onchange="onAddExpiryStatusChange()" style="flex:1;min-width:96px;">
+          <option value="dated">有日期</option>
+          <option value="no_expiry">无保质期</option>
+          <option value="unknown">日期未知</option>
+        </select>
+        <input id="invExpiresAt" type="date" style="flex:1.25;min-width:132px;">
+      </div>
+      <div class="form-row">
+        <input id="invRemark" placeholder="备注（选填）" style="flex:1;min-width:140px;">
         <label style="font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:4px;">
           <input type="checkbox" id="invStaple"> ★常备
         </label>
@@ -667,7 +705,91 @@ let WEEKLY_GAPS = { days: [], allMissing: [] };
 let CUR_PANE = "chat";
 let INV_FILTER = "all";
 let NUT_VIEW = "family";
+let EDITING_INV_ID = null;
+let EDIT_DRAFT = null;
 let AUTHOR = localStorage.getItem("fridge_author") || "老婆";
+
+function pad2(n) {
+  return n < 10 ? "0" + n : String(n);
+}
+
+function getShanghaiTodayYmd() {
+  const now = new Date();
+  const sh = new Date(now.getTime() + (now.getTimezoneOffset() + 480) * 60000);
+  return sh.getFullYear() + "-" + pad2(sh.getMonth() + 1) + "-" + pad2(sh.getDate());
+}
+
+function addDaysYmd(baseYmd, days) {
+  const m = String(baseYmd || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return getShanghaiTodayYmd();
+  const dt = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10) + (parseInt(days, 10) || 0));
+  return dt.getFullYear() + "-" + pad2(dt.getMonth() + 1) + "-" + pad2(dt.getDate());
+}
+
+function getDefaultExpiryYmd() {
+  return addDaysYmd(getShanghaiTodayYmd(), 7);
+}
+
+function isNoDateStatus(status) {
+  return status === "no_expiry" || status === "unknown";
+}
+
+function hasFiniteDays(item) {
+  return Boolean(item && !isNoDateStatus(item.expiryStatus) && typeof item.daysLeft === "number" && Number.isFinite(item.daysLeft));
+}
+
+function isUrgentItem(item, maxDays) {
+  return hasFiniteDays(item) && item.daysLeft <= maxDays;
+}
+
+function getExpirySortRank(item) {
+  if (!item) return 2;
+  if (item.expiryStatus === "no_expiry") return 2;
+  if (item.expiryStatus === "unknown") return 1;
+  if (hasFiniteDays(item)) return 0;
+  return 1;
+}
+
+function sortInventoryList(list) {
+  return (list || []).map((item, idx) => ({ item, idx })).sort((a, b) => {
+    const ra = getExpirySortRank(a.item);
+    const rb = getExpirySortRank(b.item);
+    if (ra !== rb) return ra - rb;
+    if (ra === 0 && a.item.daysLeft !== b.item.daysLeft) return a.item.daysLeft - b.item.daysLeft;
+    return a.idx - b.idx;
+  }).map(w => w.item);
+}
+
+function formatExpiryPill(item) {
+  if (item && item.expiryStatus === "no_expiry") return { text: "无保质期", cls: "neutral" };
+  if (item && item.expiryStatus === "unknown") return { text: "日期未知", cls: "neutral" };
+  if (!hasFiniteDays(item)) return { text: "日期未知", cls: "neutral" };
+  const d = item.daysLeft;
+  const text = d < 0 ? ("过期" + Math.abs(d) + "天") : (d === 0 ? "今日用完" : (d >= 55 ? "剩" + Math.round(d / 30) + "个月" : "剩" + d + "天"));
+  return { text, cls: d <= 3 ? "urgent" : "" };
+}
+
+function formatExpirySub(item) {
+  if (item && item.expiryStatus === "no_expiry") return esc(item.location) + " · 无保质期";
+  if (item && item.expiryStatus === "unknown") return esc(item.location) + " · 日期未知";
+  if (item && item.expiresAt) return esc(item.location) + " · 到期 " + esc(item.expiresAt);
+  return esc(item.location) + " · 日期未知";
+}
+
+function humanizeError(msg) {
+  const s = String(msg || "").trim();
+  if (!s) return "请检查填写内容后重试";
+  if (s === "empty_message") return "请输入要发送的内容";
+  if (s === "invalid_family_key") return "家庭密钥无效，请重新输入";
+  if (s === "storage_or_internal_error") return "云端保存失败，请稍后重试";
+  if (/YYYY-MM-DD|到期日期|日历日/.test(s)) return "请填写有效的到期日期";
+  if (/无日期项不能直接调整/.test(s)) return "无日期食材不能直接调天数，请点「编辑」切为「有日期」";
+  if (/无日期状态不能/.test(s)) return "无保质期或日期未知不能同时填写日期";
+  if (/无效的到期状态/.test(s)) return "到期状态选择有误，请重新选择";
+  if (/备注必须/.test(s)) return "备注内容格式不正确";
+  if (/未找到指定 ID/.test(s)) return "该食材已不存在或已被删除，请刷新列表";
+  return s;
+}
 
 (function initKey() {
   const qs = new URLSearchParams(window.location.search);
@@ -689,7 +811,7 @@ function showToast(msg) {
 }
 
 function esc(s) {
-  return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 }
 
 function setAuthor(name) {
@@ -724,6 +846,19 @@ async function apiFetch(path, options) {
       if (resp.status === 401) {
         document.getElementById("authBanner").style.display = "block";
         showToast("需要家庭专属密钥才能修改，请从家庭群置顶链接打开");
+        return null;
+      }
+      if (resp.status >= 400 && resp.status < 500) {
+        let errMsg = "";
+        try {
+          if ((resp.headers.get("content-type") || "").includes("application/json")) {
+            const errBody = await resp.json();
+            errMsg = errBody.error || errBody.message || "";
+          } else {
+            errMsg = await resp.text();
+          }
+        } catch (e) {}
+        showToast("提交未通过：" + humanizeError(errMsg));
         return null;
       }
       if (resp.ok && (resp.headers.get("content-type") || "").includes("application/json")) {
@@ -768,7 +903,9 @@ async function runPatch(actions, toastMsg) {
     WEEKLY_GAPS = res.weeklyGaps || WEEKLY_GAPS;
     renderAll();
     showToast(toastMsg || (res.notes && res.notes[0]) || "✓ 已同步到 Kindle");
+    return true;
   }
+  return false;
 }
 
 async function saveFullState() {
@@ -838,21 +975,156 @@ async function sendChat() {
 }
 
 // ==================== 库存与待买操作 ====================
+function initAddInventoryForm() {
+  const statusEl = document.getElementById("invExpiryStatus");
+  const dateEl = document.getElementById("invExpiresAt");
+  if (!statusEl || !dateEl) return;
+  statusEl.value = "dated";
+  dateEl.value = getDefaultExpiryYmd();
+  dateEl.style.display = "";
+}
+
+function onAddExpiryStatusChange() {
+  const status = document.getElementById("invExpiryStatus").value;
+  const dateEl = document.getElementById("invExpiresAt");
+  if (isNoDateStatus(status)) {
+    dateEl.style.display = "none";
+  } else {
+    dateEl.style.display = "";
+    if (!dateEl.value) dateEl.value = getDefaultExpiryYmd();
+  }
+}
+
 function setInvFilter(f) {
   INV_FILTER = f;
   renderInventory();
 }
 
 async function addInventoryItem() {
-  const name = document.getElementById("invName").value.trim();
+  const nameEl = document.getElementById("invName");
+  const qtyEl = document.getElementById("invQty");
+  const zoneEl = document.getElementById("invZone");
+  const statusEl = document.getElementById("invExpiryStatus");
+  const dateEl = document.getElementById("invExpiresAt");
+  const remarkEl = document.getElementById("invRemark");
+  const stapleEl = document.getElementById("invStaple");
+
+  const name = nameEl.value.trim();
   if (!name) return;
-  const qty = document.getElementById("invQty").value.trim();
-  const zone = document.getElementById("invZone").value;
-  const days = parseInt(document.getElementById("invDays").value, 10) || 7;
-  const staple = document.getElementById("invStaple").checked;
-  document.getElementById("invName").value = "";
-  document.getElementById("invQty").value = "";
-  await runPatch({ op: "add_inventory", items: [{ name, qty, zone, daysLeft: days, staple }] });
+  const qty = qtyEl.value.trim();
+  const zone = zoneEl.value;
+  const expiryStatus = statusEl.value;
+  const staple = stapleEl.checked;
+  const remark = remarkEl.value;
+
+  const item = { name, qty, zone, staple, expiryStatus };
+  if (isNoDateStatus(expiryStatus)) {
+    item.expiresAt = null;
+    item.daysLeft = null;
+  } else {
+    const expiresAt = dateEl.value.trim();
+    if (!expiresAt) {
+      showToast("请选择到期日期");
+      return;
+    }
+    item.expiresAt = expiresAt;
+  }
+  if (remark !== "") {
+    item.remark = remark;
+  }
+
+  const ok = await runPatch({ op: "add_inventory", items: [item] });
+  if (ok) {
+    nameEl.value = "";
+    qtyEl.value = "";
+    remarkEl.value = "";
+    stapleEl.checked = false;
+    initAddInventoryForm();
+  }
+}
+
+function openEditInventory(id) {
+  const it = (STATE && STATE.inventory || []).find(x => x.id === id);
+  if (!it) return;
+  EDITING_INV_ID = id;
+  const status = isNoDateStatus(it.expiryStatus) ? it.expiryStatus : "dated";
+  EDIT_DRAFT = {
+    id: it.id,
+    name: it.name || "",
+    qty: it.qty || "",
+    zone: it.zone || "cold",
+    staple: Boolean(it.staple),
+    expiryStatus: status,
+    expiresAt: status === "dated" ? (it.expiresAt || getDefaultExpiryYmd()) : "",
+    remark: typeof it.remark === "string" ? it.remark : "",
+    hadRemark: typeof it.remark === "string" && it.remark !== ""
+  };
+  renderInventory();
+}
+
+function cancelEditInventory() {
+  EDITING_INV_ID = null;
+  EDIT_DRAFT = null;
+  renderInventory();
+}
+
+function updateEditDraft(field, value) {
+  if (!EDIT_DRAFT) return;
+  EDIT_DRAFT[field] = value;
+  if (field === "expiryStatus") {
+    const dateInput = document.getElementById("editInvExpiresAt");
+    if (isNoDateStatus(value)) {
+      if (dateInput) dateInput.style.display = "none";
+    } else {
+      if (!EDIT_DRAFT.expiresAt) EDIT_DRAFT.expiresAt = getDefaultExpiryYmd();
+      if (dateInput) {
+        dateInput.style.display = "";
+        dateInput.value = EDIT_DRAFT.expiresAt;
+      }
+    }
+  }
+}
+
+async function saveEditInventory(id) {
+  if (!EDIT_DRAFT || EDIT_DRAFT.id !== id) return;
+  const name = String(EDIT_DRAFT.name || "").trim();
+  if (!name) {
+    showToast("请输入食材名称");
+    return;
+  }
+  const action = {
+    op: "update_inventory",
+    id,
+    name,
+    qty: String(EDIT_DRAFT.qty || "").trim(),
+    zone: EDIT_DRAFT.zone,
+    staple: Boolean(EDIT_DRAFT.staple),
+    expiryStatus: EDIT_DRAFT.expiryStatus
+  };
+  if (isNoDateStatus(EDIT_DRAFT.expiryStatus)) {
+    action.expiresAt = null;
+    action.daysLeft = null;
+  } else {
+    const exp = String(EDIT_DRAFT.expiresAt || "").trim();
+    if (!exp) {
+      showToast("请选择到期日期");
+      return;
+    }
+    action.expiresAt = exp;
+  }
+  const rm = typeof EDIT_DRAFT.remark === "string" ? EDIT_DRAFT.remark : "";
+  if (rm !== "") {
+    action.remark = rm;
+  } else if (EDIT_DRAFT.hadRemark) {
+    action.remark = "";
+  }
+
+  const ok = await runPatch(action, "✓ 已保存修改");
+  if (ok) {
+    EDITING_INV_ID = null;
+    EDIT_DRAFT = null;
+    renderInventory();
+  }
 }
 
 async function adjustInvDays(id, delta) {
@@ -864,6 +1136,10 @@ async function toggleStaple(id, cur) {
 }
 
 async function consumeInv(id) {
+  if (EDITING_INV_ID === id) {
+    EDITING_INV_ID = null;
+    EDIT_DRAFT = null;
+  }
   await runPatch({ op: "consume_inventory", id, autoRestock: true });
 }
 
@@ -1073,9 +1349,11 @@ async function syncWeeklyGaps() {
 
 async function triggerAiRecipes() {
   showToast("🤖 AI 正在结合临期食材与蛋白缺口推荐…");
+  // 仅发送刷新食谱意图，绝不提交前端旧库存整包覆盖云端并发修改
   const res = await apiFetch("/api/ai-recipes", { method: "POST", body: JSON.stringify({}) });
   if (res && res.ok) {
-    STATE = res.state;
+    if (res.state) STATE = res.state;
+    else if (STATE && Array.isArray(res.recipes)) STATE.recipes = res.recipes;
     renderAll();
     showToast("✓ 已更新 AI 推荐菜谱池");
   }
@@ -1128,13 +1406,18 @@ function renderAll() {
 }
 
 function renderChatSummary() {
-  const inv = (STATE.inventory || []).slice().sort((a, b) => a.daysLeft - b.daysLeft);
-  const urgent = inv.filter(i => i.daysLeft <= 3);
+  const inv = sortInventoryList(STATE.inventory || []);
+  const urgent = inv.filter(i => isUrgentItem(i, 3));
   const fam = NUT.family;
   document.getElementById("chatSummaryMeta").innerText = "库存 " + inv.length + " 样 · 临期 " + urgent.length + " 样";
   let lines = [];
   if (urgent.length > 0) {
-    lines.push("🔥 <b>优先消耗</b>：" + urgent.slice(0, 4).map(i => esc(i.name) + "(" + (i.daysLeft <= 0 ? "今日" : i.daysLeft + "天") + ")").join("、"));
+    lines.push("🔥 <b>优先消耗</b>：" + urgent.slice(0, 4).map(i => {
+      const txt = i.daysLeft < 0 ? ("过期" + Math.abs(i.daysLeft) + "天") : (i.daysLeft === 0 ? "今日" : i.daysLeft + "天");
+      return esc(i.name) + "(" + txt + ")";
+    }).join("、"));
+  } else {
+    lines.push("✨ <b>到期提醒</b>：暂无到期提醒");
   }
   if (fam) {
     lines.push("🥗 <b>" + esc(fam.label) + "</b>：蛋白 " + fam.current.protein + "/" + fam.target.protein + "g · 碳水 " + fam.current.carb + "/" + fam.target.carb + "g");
@@ -1146,7 +1429,7 @@ function renderChatSummary() {
 }
 
 function renderInventory() {
-  const inv = (STATE.inventory || []).slice().sort((a, b) => a.daysLeft - b.daysLeft);
+  const inv = sortInventoryList(STATE.inventory || []);
   document.getElementById("invTotalCount").innerText = "(" + inv.length + ")";
 
   // 渲染待买
@@ -1172,31 +1455,71 @@ function renderInventory() {
   const filtered = inv.filter(it => {
     if (INV_FILTER === "cold") return it.zone === "cold" || it.zone === "pantry";
     if (INV_FILTER === "frozen") return it.zone === "frozen";
-    if (INV_FILTER === "urgent") return it.daysLeft <= 3;
+    if (INV_FILTER === "urgent") return isUrgentItem(it, 3);
     if (INV_FILTER === "staple") return Boolean(it.staple);
     return true;
   });
 
   document.getElementById("invListEl").innerHTML = filtered.length === 0
-    ? '<div class="item-sub" style="padding:8px 0;">该分类暂无食材</div>'
+    ? '<div class="item-sub" style="padding:8px 0;">' + (INV_FILTER === "urgent" ? "暂无到期提醒" : "该分类暂无食材") + '</div>'
     : filtered.map(it => {
-        const urgent = it.daysLeft <= 3;
-        const lbl = it.daysLeft < 0 ? ("过期" + Math.abs(it.daysLeft) + "天") : (it.daysLeft === 0 ? "今日用完" : (it.daysLeft >= 55 ? "剩" + Math.round(it.daysLeft / 30) + "个月" : "剩" + it.daysLeft + "天"));
+        const pill = formatExpiryPill(it);
+        const noDate = isNoDateStatus(it.expiryStatus);
+        const remarkHtml = (typeof it.remark === "string" && it.remark !== "")
+          ? '<div class="item-remark">' + esc(it.remark) + '</div>'
+          : '';
+        const isEditing = EDITING_INV_ID === it.id && EDIT_DRAFT;
+        const editBoxHtml = isEditing
+          ? '<div class="edit-box" data-edit-id="' + esc(it.id) + '">' +
+              '<div class="edit-box-title">编辑食材信息</div>' +
+              '<div class="form-row">' +
+                '<input id="editInvName" value="' + esc(EDIT_DRAFT.name) + '" oninput="updateEditDraft(\'name\',this.value)" placeholder="食材名" style="flex:2;min-width:110px;">' +
+                '<input id="editInvQty" value="' + esc(EDIT_DRAFT.qty) + '" oninput="updateEditDraft(\'qty\',this.value)" placeholder="数量" style="flex:1;min-width:75px;">' +
+              '</div>' +
+              '<div class="form-row">' +
+                '<select id="editInvZone" onchange="updateEditDraft(\'zone\',this.value)" style="flex:1;min-width:86px;">' +
+                  '<option value="cold"' + (EDIT_DRAFT.zone === "cold" ? " selected" : "") + '>❄ 冷藏</option>' +
+                  '<option value="frozen"' + (EDIT_DRAFT.zone === "frozen" ? " selected" : "") + '>🧊 冷冻</option>' +
+                  '<option value="pantry"' + (EDIT_DRAFT.zone === "pantry" ? " selected" : "") + '>📦 常温</option>' +
+                '</select>' +
+                '<select id="editInvStatus" onchange="updateEditDraft(\'expiryStatus\',this.value)" style="flex:1;min-width:96px;">' +
+                  '<option value="dated"' + (EDIT_DRAFT.expiryStatus === "dated" ? " selected" : "") + '>有日期</option>' +
+                  '<option value="no_expiry"' + (EDIT_DRAFT.expiryStatus === "no_expiry" ? " selected" : "") + '>无保质期</option>' +
+                  '<option value="unknown"' + (EDIT_DRAFT.expiryStatus === "unknown" ? " selected" : "") + '>日期未知</option>' +
+                '</select>' +
+                '<input id="editInvExpiresAt" type="date" value="' + esc(EDIT_DRAFT.expiresAt) + '" oninput="updateEditDraft(\'expiresAt\',this.value)" style="flex:1.25;min-width:132px;' + (isNoDateStatus(EDIT_DRAFT.expiryStatus) ? "display:none;" : "") + '">' +
+              '</div>' +
+              '<div class="form-row">' +
+                '<textarea id="editInvRemark" rows="2" oninput="updateEditDraft(\'remark\',this.value)" placeholder="备注（选填）" style="flex:1;min-width:160px;resize:vertical;">' + esc(EDIT_DRAFT.remark) + '</textarea>' +
+              '</div>' +
+              '<div class="form-row" style="margin-bottom:0;justify-content:space-between;">' +
+                '<label style="font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:4px;">' +
+                  '<input type="checkbox" id="editInvStaple"' + (EDIT_DRAFT.staple ? " checked" : "") + ' onchange="updateEditDraft(\'staple\',this.checked)"> ★常备' +
+                '</label>' +
+                '<div style="display:flex;gap:6px;">' +
+                  '<button class="btn outline sm" onclick="cancelEditInventory()">取消</button>' +
+                  '<button class="btn accent sm" onclick="saveEditInventory(\'' + esc(it.id) + '\')">保存修改</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>'
+          : '';
         return '<div class="item-row">' +
           '<div class="item-main">' +
             '<div class="item-title">' + (it.staple ? "★ " : "") + esc(it.name) +
               (it.qty ? ' <span style="font-weight:600;font-size:12px;color:var(--muted);">' + esc(it.qty) + '</span>' : '') +
             '</div>' +
-            '<div class="item-sub">' + esc(it.location) + " · 到期 " + esc(it.expiresAt) + '</div>' +
+            '<div class="item-sub">' + formatExpirySub(it) + '</div>' +
+            remarkHtml +
           '</div>' +
           '<div class="item-actions">' +
             '<button class="btn outline sm" onclick="toggleStaple(\'' + esc(it.id) + '\',' + Boolean(it.staple) + ')" title="切换常备">★</button>' +
-            '<button class="btn outline sm" onclick="adjustInvDays(\'' + esc(it.id) + '\',-1)">-1</button>' +
-            '<span class="days-pill' + (urgent ? " urgent" : "") + '">' + lbl + '</span>' +
-            '<button class="btn outline sm" onclick="adjustInvDays(\'' + esc(it.id) + '\',7)">+7</button>' +
+            (noDate ? '' : '<button class="btn outline sm" onclick="adjustInvDays(\'' + esc(it.id) + '\',-1)">-1</button>') +
+            '<span class="days-pill' + (pill.cls ? (" " + pill.cls) : "") + '">' + esc(pill.text) + '</span>' +
+            (noDate ? '' : '<button class="btn outline sm" onclick="adjustInvDays(\'' + esc(it.id) + '\',7)">+7</button>') +
+            '<button class="btn outline sm" onclick="openEditInventory(\'' + esc(it.id) + '\')">编辑</button>' +
             '<button class="btn sm" onclick="consumeInv(\'' + esc(it.id) + '\')">用完</button>' +
           '</div>' +
-        '</div>';
+        '</div>' + editBoxHtml;
       }).join("");
 }
 
@@ -1301,6 +1624,7 @@ function renderPlanAndSettings() {
   ).join("");
 }
 
+initAddInventoryForm();
 loadLive();
 </script>
 </body>
